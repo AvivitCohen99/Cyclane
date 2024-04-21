@@ -16,7 +16,11 @@ function App(): React.JSX.Element {
           headerShown: false,
         }}>
         <Stack.Screen name="WelcomeScreen" component={WelcomeScreen} />
-        <Stack.Screen name="MapScreen" component={MapScreen} />
+        <Stack.Screen
+          name="MapScreen"
+          component={MapScreen}
+          options={{headerShown: true}}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
