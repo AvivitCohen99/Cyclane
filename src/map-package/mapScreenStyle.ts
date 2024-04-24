@@ -16,7 +16,13 @@ export const mapScreenStyle = StyleSheet.create({
       map: {
         width: '100%',
         height: '100%'
-      }
+      },
+      buttonsWrapper: {
+        gap: 30,
+        width: '100%',
+        alignItems: 'center',
+        marginBottom: 30
+    }
 })
 
 export const mapStyle = [
