@@ -1,36 +1,44 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, SafeAreaView } from 'react-native';
-import { WithNavigation } from '../common';
-import { AppButton } from '../components/atom/appButton/appButton';
-import { mapScreenStyle, mapStyle } from './mapScreenStyle';
-import MapView, { Marker } from 'react-native-maps';
+import React, {useEffect, useState} from 'react';
+import {Alert, Platform, SafeAreaView} from 'react-native';
+import {WithNavigation} from '../common';
+import {AppButton} from '../components/atom/appButton/appButton';
+import {mapScreenStyle, mapStyle} from './mapScreenStyle';
+import MapView, {Marker} from 'react-native-maps';
 import Geolocation from 'react-native-geolocation-service';
-import { PermissionsAndroid } from 'react-native';
+import {PermissionsAndroid} from 'react-native';
 
 type MapScreenProps = {} & WithNavigation;
 
-export const MapScreen: React.FC<MapScreenProps> = (props) => {
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+export const MapScreen: React.FC<MapScreenProps> = props => {
+  const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   // Function to get permission for location
   const requestLocationPermission = async () => {
     try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: 'Geolocation Permission',
-          message: 'Can we access your location?',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log('You can use Geolocation');
-        return true;
+      if (Platform.OS === 'android') {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: 'Geolocation Permission',
+            message: 'Can we access your location?',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          },
+        );
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          console.log('You can use Geolocation');
+          return true;
+        } else {
+          console.log('You cannot use Geolocation');
+          return false;
+        }
       } else {
-        console.log('You cannot use Geolocation');
-        return false;
+        const result = await Geolocation.requestAuthorization('whenInUse');
+        return result === 'granted';
       }
     } catch (err) {
       console.error('Error requesting location permission:', err);
@@ -43,15 +51,18 @@ export const MapScreen: React.FC<MapScreenProps> = (props) => {
     const permissionGranted = await requestLocationPermission();
     if (permissionGranted) {
       Geolocation.getCurrentPosition(
-        (position) => {
+        position => {
           console.log('Current position:', position);
-          setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+          setLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
         },
-        (error) => {
+        error => {
           console.error('Error getting current position:', error);
           setLocation(null);
         },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+        {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
       );
     }
   };

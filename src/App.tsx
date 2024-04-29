@@ -2,9 +2,8 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import React from 'react';
 
-import {Button, SafeAreaView, StyleSheet, Text} from 'react-native';
-import {WelcomeScreen} from './welcome-package/welcomeScreen';
 import {MapScreen} from './map-package/mapScreen';
+import {WelcomeScreen} from './welcome-package/welcomeScreen';
 
 const Stack = createNativeStackNavigator();
 

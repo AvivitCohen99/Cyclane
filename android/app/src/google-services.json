@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "410366735513",
+    "project_id": "cyclane-421014",
+    "storage_bucket": "cyclane-421014.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:410366735513:android:9304e21edef3a99acc7408",
+        "android_client_info": {
+          "package_name": "com.cyclane"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "410366735513-ms8o83cq8f8j0547ev2fnkvf0bf0ihh2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.cyclane",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "410366735513-dned6t4nri2pmdcnhes7pemme2vmkon4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC7JArjynS1leKOGRVEsSBHF3DDv_p3dJY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "410366735513-dned6t4nri2pmdcnhes7pemme2vmkon4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

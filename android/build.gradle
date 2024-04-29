@@ -7,6 +7,7 @@ buildscript {
         ndkVersion = "27.0.11718014"
         kotlinVersion = "1.8.0"
         playServicesLocationVersion = "21.0.1"
+        googlePlayServicesAuthVersion = "19.2.0"
     }
     repositories {
         google()
@@ -16,6 +17,10 @@ buildscript {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        classpath 'com.google.gms:google-services:4.4.1'
+    }
+    plugins {
+        id 'com.google.gms.google-services' version '4.4.1' apply false
     }
 }
 

@@ -8,9 +8,14 @@
     "pods": "cd ios && pod install",
     "lint": "eslint .",
     "start": "react-native start",
+    "ios:release": "npx react-native run-ios --device 'Avivit’s iPhone ' --mode Release",
+    "ios:debug": "npx react-native run-ios --device 'Avivit’s iPhone ' --mode Debug",
     "test": "jest"
   },
   "dependencies": {
+    "@invertase/react-native-apple-authentication": "^2.3.0",
+    "@react-native-firebase/app": "^19.2.2",
+    "@react-native-google-signin/google-signin": "^11.0.1",
     "@react-navigation/native": "^6.1.17",
     "@react-navigation/native-stack": "^6.9.26",
     "expo-location": "^16.5.5",
