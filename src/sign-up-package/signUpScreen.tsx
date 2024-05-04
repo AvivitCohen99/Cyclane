@@ -1,17 +1,10 @@
-import {
-  Alert,
-  Image,
-  SafeAreaView,
-  TextInput,
-  View,
-  VirtualizedList,
-} from 'react-native';
+import auth from '@react-native-firebase/auth';
+import React, {useState} from 'react';
+import {Alert, SafeAreaView, View} from 'react-native';
 import {WithNavigation} from '../common';
 import {AppButton} from '../components/atom/appButton/appButton';
 import {AppTextInput} from '../components/atom/appTextInput/appTextInput';
 import {signUpScreenStyle} from './signUpScreenStyle';
-import React, {useState} from 'react';
-import auth from '@react-native-firebase/auth';
 
 type SignUpScreenProps = {} & WithNavigation;
 
@@ -22,15 +15,26 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = props => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const signinTestFn = () => {
-    auth()
-      .createUserWithEmailAndPassword(email, password)
-      .then(() => {
-        Alert.alert('User created');
-      })
-      .catch(err => {
-        Alert.alert('Failed creating user');
-      });
+  const signin = () => {
+    password === confirmPassword
+      ? auth()
+          .createUserWithEmailAndPassword(email, password)
+          .then(() => {
+            Alert.alert('User created');
+          })
+          .catch(err => {
+            Alert.alert('Error: ' + err.text);
+          })
+      : Alert.alert(
+          'Passwords does not match ' +
+            '*' +
+            password +
+            '*' +
+            ' ' +
+            '*' +
+            confirmPassword +
+            '*',
+        );
   };
 
   return (
@@ -47,24 +51,25 @@ export const SignUpScreen: React.FC<SignUpScreenProps> = props => {
           onEndEditing={setLastName}
         />
         <AppTextInput
+          placeholder="E-mail"
           initialValue={email}
           onEndEditing={setEmail}
-          placeholder="E-mail"
+          keyboardType={'email-address'}
         />
         <AppTextInput
+          placeholder="Password"
           initialValue={password}
           onEndEditing={setPassword}
-          placeholder="Password"
           secureTextEntry={true}
         />
         <AppTextInput
+          placeholder="Confirm Password"
           initialValue={confirmPassword}
           onEndEditing={setConfirmPassword}
-          placeholder="Confirm Password"
           secureTextEntry={true}
         />
       </View>
-      <AppButton title="Sign up" onPress={signinTestFn} />
+      <AppButton title="Sign up" onPress={signin} />
     </SafeAreaView>
   );
 };
