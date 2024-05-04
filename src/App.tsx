@@ -4,7 +4,7 @@ import React from 'react';
 
 import {MapScreen} from './map-package/mapScreen';
 import {WelcomeScreen} from './welcome-package/welcomeScreen';
-import {SignInScreen} from './sign-in-package/signInScreen';
+import {SignUpScreen} from './sign-up-package/signUpScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,8 +22,8 @@ function App(): React.JSX.Element {
           options={{headerShown: true}}
         />
         <Stack.Screen
-          name="SignInScreen"
-          component={SignInScreen}
+          name="SignUpScreen"
+          component={SignUpScreen}
           options={{headerShown: true}}
         />
       </Stack.Navigator>

@@ -1,7 +1,7 @@
 import { Dimensions, StyleSheet } from "react-native";
 import { Colors } from "../../assets/colors";
 
-export const signInScreenStyle = StyleSheet.create({
+export const signUpScreenStyle = StyleSheet.create({
     mainWrapper: {
         flex: 1,
         alignItems: 'center',
