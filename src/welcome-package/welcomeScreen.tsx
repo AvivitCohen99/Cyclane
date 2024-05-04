@@ -43,13 +43,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = props => {
           source={require('../../assets/images/cover-image.jpeg')}></Image>
         <View style={welcomeScreenStyle.buttonsWrapper}>
           <AppButton
-            title={'Sign in'}
+            title={'Sign up'}
             onPress={() => {
-              props.navigation.navigate('SignInScreen');
+              props.navigation.navigate('SignUpScreen');
             }}
           />
           <AppButton
-            title={'Log in'}
+            title={'Sign in'}
             onPress={() => {
               props.navigation.navigate('MapScreen');
             }}
