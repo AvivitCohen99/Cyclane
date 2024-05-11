@@ -2123,6 +2123,11 @@
   dependencies:
     plist "^3.1.0"
 
+"@react-native-firebase/firestore@^19.2.2":
+  version "19.2.2"
+  resolved "https://registry.npmjs.org/@react-native-firebase/firestore/-/firestore-19.2.2.tgz"
+  integrity sha512-SaW/f8vDwvP24KdCBo7uaBmE+5Y8JMKfWpOzJtY1XXuA7wlua3IjIilEXNVGrFk8az6N3n9RhCIpWbn4mOml9g==
+
 "@react-native-google-signin/google-signin@^11.0.1":
   version "11.0.1"
   resolved "https://registry.npmjs.org/@react-native-google-signin/google-signin/-/google-signin-11.0.1.tgz"
@@ -6077,11 +6082,6 @@ lodash.debounce@^4.0.8:
   resolved "https://registry.npmjs.org/lodash.debounce/-/lodash.debounce-4.0.8.tgz"
   integrity sha512-FT1yDzDYEoYWhnSGnpE/4Kj1fLZkDFyqRb7fNt6FdYOSxlUWAtp42Eh6Wb0rGIv/m9Bgo7x4GhQbm5Ys4SG5ow==
 
-lodash.isequal@^4.5.0:
-  version "4.5.0"
-  resolved "https://registry.npmjs.org/lodash.isequal/-/lodash.isequal-4.5.0.tgz"
-  integrity sha512-pDo3lu8Jhfjqls6GkMgpahsF9kCyayhgykjyLMNFTKWrpVdAQtYyB4muAMWozBB4ig/dtWAmsMxLEI8wuz+DYQ==
-
 lodash.merge@^4.6.2:
   version "4.6.2"
   resolved "https://registry.npmjs.org/lodash.merge/-/lodash.merge-4.6.2.tgz"
@@ -7180,7 +7180,7 @@ prompts@^2.0.1, prompts@^2.3.2, prompts@^2.4.2:
     kleur "^3.0.3"
     sisteransi "^1.0.5"
 
-prop-types@^15.6.0, prop-types@^15.8.1:
+prop-types@^15.8.1:
   version "15.8.1"
   resolved "https://registry.npmjs.org/prop-types/-/prop-types-15.8.1.tgz"
   integrity sha512-oj87CgZICdulUohogVAR7AjlC0327U4el4L6eAvOqCeudMDVU0NThNaV+b9Df4dXgSP1gXMTnPdhfe/2qDH5cg==
@@ -7287,15 +7287,7 @@ react-native-geolocation-service@^5.3.1:
   resolved "https://registry.npmjs.org/react-native-geolocation-service/-/react-native-geolocation-service-5.3.1.tgz"
   integrity sha512-LTXPtPNmrdhx+yeWG47sAaCgQc3nG1z+HLLHlhK/5YfOgfLcAb9HAkhREPjQKPZOUx8pKZMIpdGFUGfJYtimXQ==
 
-react-native-maps-directions@^1.9.0:
-  version "1.9.0"
-  resolved "https://registry.npmjs.org/react-native-maps-directions/-/react-native-maps-directions-1.9.0.tgz"
-  integrity sha512-68SrMOUg4WQ5PmpS9sNOTZaYtdyVYJnnjQOOhABrgiKnb5BXCZRU2gDoS11gYf23hjUBjq8JXzgfn37WcINLwA==
-  dependencies:
-    lodash.isequal "^4.5.0"
-    prop-types "^15.6.0"
-
-react-native-maps@^1.14.0, react-native-maps@>=1.0.0:
+react-native-maps@^1.14.0:
   version "1.14.0"
   resolved "https://registry.npmjs.org/react-native-maps/-/react-native-maps-1.14.0.tgz"
   integrity sha512-ai7h4UdRLGPFCguz1fI8n4sKLEh35nZXHAH4nSWyAeHGrN8K9GjICu9Xd4Q5Ok4h+WwrM6Xz5pGbF3Qm1tO6iQ==

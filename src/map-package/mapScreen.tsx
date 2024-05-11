@@ -7,32 +7,52 @@ import MapView, {Marker , Polyline} from 'react-native-maps';
 import Geolocation from 'react-native-geolocation-service';
 import {PermissionsAndroid} from 'react-native';
 import { StyleSheet, View } from 'react-native';
-
+import firestore from '@react-native-firebase/firestore';
+import GeoPoint from "@react-native-firebase/firestore";
 
 type MapScreenProps = {} & WithNavigation;
+interface Geopoint {
+  latitude: number;
+  longitude: number;
+}
 
-const routeCoordinates = [
-  { latitude: 32.047215, longitude: 34.760438 }, // Start point
-  { latitude: 32.051396, longitude: 34.761771 },  // Waypoint 1
-  { latitude: 32.050829, longitude: 34.748971 },  // Waypoint 2
-  { latitude: 32.068859, longitude: 34.769398 }, // End point (return to start)
-];
+//const [routes, setRoutes] = useState<Array<Array<Geopoint>>>([]); // doesnt seem to work (routes doesnt get a value after using setRoutes)
+const extractedRoutes: Array<Array<Geopoint>> = []; // the array that holds all the routes(which are also arrays of geopoints)
+// in here we save all the routes from the firestore
 
-const routeCoordinates2 = [
-  { latitude: 32.504717,  longitude: 34.912955 }, // Start point
-  { latitude: 32.503121, longitude: 34.905046 },  // Waypoint 1
-  { latitude: 32.511429, longitude: 34.897651 },  // Waypoint 2
-  { latitude: 32.514716, longitude: 34.897839 }, // End point (return to start)
-];
-const routeCoordinates3 = [
-  { latitude: 32.489999,  longitude: 34.903373 }, // Start point
-  { latitude: 32.502926, longitude: 34.904756 },  // Waypoint 1
-  { latitude: 32.506899, longitude: 34.903635 },  // Waypoint 2
-  { latitude: 32.518878, longitude: 34.907186 }, // End point (return to start)
-];
 
+// Function to get the routes from the database
+const fetchRoutes = async () => {
+  try {
+    const routesCollection = await firestore().collection('routes').get();
+    routesCollection.forEach((doc) => {
+      const route = doc.data().route;
+      console.log('route',route); // the current route in the doc 
+      if (Array.isArray(route)) {
+        const geopoints: Array<Geopoint> = route.map((point: any) => ({
+          latitude: point.latitude,
+          longitude: point.longitude,
+        }
+      ));
+      console.log('geopoints inside if',geopoints) // just to check if the geopoints inserted currectly from the doc
+        extractedRoutes.push(geopoints);
+        console.log('extractedRoutes',extractedRoutes);
+      }
+    });
+  //  setRoutes(extractedRoutes); // doesnt seem to work 
+    console.log('extractedRoutes',extractedRoutes)
+    } catch (error) {
+      console.error('Error fetching routes:', error);
+    }
+  };
+
+
+useEffect(() => {
+    fetchRoutes();
+  }, []);
 
 export const MapScreen: React.FC<MapScreenProps> = props => {
+  // location
   const [location, setLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -90,7 +110,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     }
   };
 
-  useEffect(() => {
+  useEffect(() => { 
     getLocation();
   }, []); // Run once when the component mounts
 
@@ -119,28 +139,28 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
           />
         )}
       
-        {/* Display a Polyline representing the custom route */}
-        <Polyline
-          coordinates={routeCoordinates}
-          strokeWidth={4}
-          strokeColor="#00f"
-        />
-        <Polyline
-          coordinates={routeCoordinates2}
-          strokeWidth={4}
-          strokeColor="#00008b"
-        />
-        <Polyline
-          coordinates={routeCoordinates3}
-          strokeWidth={4}
-          strokeColor="#008000"
-        />
-
-
+        {/* Display a Polyline representing the custom routes */}
+        {extractedRoutes.map((route, index) => (
+          <Polyline
+            key={`route-${index}`}
+            coordinates={route}
+            strokeWidth={4}
+            strokeColor={getPolylineColor(index)}
+          />
+        ))}
+        
       </MapView>
     </SafeAreaView>
   );
 };
+
+// colors cycle for the polylines
+const getPolylineColor = (index: number): string => {
+  const colors = ['#dc143c', '#00bfff', '#32cd32', '#ff1493', '#ffa500']; // Define your colors array
+  const colorIndex = index % colors.length; // Use modulo to cycle through colors
+  return colors[colorIndex];
+};
+
 
 const styles = StyleSheet.create({
   container: {
