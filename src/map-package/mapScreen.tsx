@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Alert, Platform, SafeAreaView} from 'react-native';
+import {Alert, Platform, SafeAreaView ,Button } from 'react-native';
 import {WithNavigation} from '../common';
 import {AppButton} from '../components/atom/appButton/appButton';
 import {mapScreenStyle, mapStyle} from './mapScreenStyle';
@@ -11,47 +11,59 @@ import firestore from '@react-native-firebase/firestore';
 import GeoPoint from "@react-native-firebase/firestore";
 
 type MapScreenProps = {} & WithNavigation;
-interface Geopoint {
+
+// represents the array of Geopoints for each doc 
+interface GeoPointData  {
   latitude: number;
   longitude: number;
 }
+// represents the whole doc in the db
+interface RouteData {
+  route: GeoPointData [];
+  difficulty: number;
+  name: string;
+}
 
-//const [routes, setRoutes] = useState<Array<Array<Geopoint>>>([]); // doesnt seem to work (routes doesnt get a value after using setRoutes)
-const extractedRoutes: Array<Array<Geopoint>> = []; // the array that holds all the routes(which are also arrays of geopoints)
-// in here we save all the routes from the firestore
 
 
-// Function to get the routes from the database
-const fetchRoutes = async () => {
-  try {
-    const routesCollection = await firestore().collection('routes').get();
-    routesCollection.forEach((doc) => {
-      const route = doc.data().route;
-      console.log('route',route); // the current route in the doc 
-      if (Array.isArray(route)) {
-        const geopoints: Array<Geopoint> = route.map((point: any) => ({
-          latitude: point.latitude,
-          longitude: point.longitude,
-        }
-      ));
-      console.log('geopoints inside if',geopoints) // just to check if the geopoints inserted currectly from the doc
-        extractedRoutes.push(geopoints);
-        console.log('extractedRoutes',extractedRoutes);
-      }
-    });
-  //  setRoutes(extractedRoutes); // doesnt seem to work 
-    console.log('extractedRoutes',extractedRoutes)
-    } catch (error) {
-      console.error('Error fetching routes:', error);
-    }
-  };
+
+//const [routes, setRoutes] = useState<Array<Array<Geopoint>>>([]); 
+
+
+const extractedRoutes: RouteData[] = [];
+
+ // the array that holds all the docs
+// in here we save all the routes and its information from the firestore
 
 
 useEffect(() => {
-    fetchRoutes();
+    //fetchRoutes();
   }, []);
 
 export const MapScreen: React.FC<MapScreenProps> = props => {
+
+// current selected route
+  const [selectedRoute, setSelectedRoute] = useState<{
+    route: GeoPointData [];
+  difficulty: number;
+  name: string;
+  } | null>(null);
+  const [showRoutes, setShowRoutes] = useState<boolean>(false);
+
+
+//  Function to handle polyline press
+  const handlePolylinePress = (route: {
+    route: GeoPointData [];
+    difficulty: number;
+    name: string;}) => {
+    setSelectedRoute(route);
+    Alert.alert(
+      'Route Information',
+      `Name: ${route.name}\nDifficulty: ${route.difficulty}`,
+      [{ text: 'OK' }]
+    );
+  };
+
   // location
   const [location, setLocation] = useState<{
     latitude: number;
@@ -110,9 +122,50 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     }
   };
 
+
+// Function to get the routes from the database
+const fetchRoutes = async () => {
+  try {
+    const routesCollection = await firestore().collection('routes').get();
+    routesCollection.forEach((doc) => {
+      const data = doc.data() as RouteData;
+      const route = doc.data().route; // Get the route from the document
+      console.log('route',route);  // the current route in the doc
+      const difficulty = doc.data().difficulty; // Get the difficulty from the document
+      const name = doc.data().name; // Get the name from the document
+      
+      if (Array.isArray(route)) {
+        const geopoints: Array<GeoPointData > = route.map((point: any) => ({
+          latitude: point.latitude,
+          longitude: point.longitude,
+        }
+      ));
+      extractedRoutes.push(data);
+        console.log('extractedRoutes data:',data.route);
+      }
+    });
+  //  setRoutes(extractedRoutes);
+   setShowRoutes(true);
+   console.log(showRoutes);
+    } catch (error) {
+      console.error('Error fetching routes:', error);
+    }
+  };
+
+
+
+
   useEffect(() => { 
     getLocation();
+    //fetchRoutes();
   }, []); // Run once when the component mounts
+
+  // showRoutes button function
+  const showAllroutes = async () => {
+    await fetchRoutes();  // Fetch the routes and update the state
+    setShowRoutes(true);
+    console.log(showRoutes);
+  };
 
   return (
     <SafeAreaView style={mapScreenStyle.mainWrapper}>
@@ -140,16 +193,26 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
         )}
       
         {/* Display a Polyline representing the custom routes */}
-        {extractedRoutes.map((route, index) => (
+        { extractedRoutes.map((data, index) => (
           <Polyline
             key={`route-${index}`}
-            coordinates={route}
-            strokeWidth={4}
+            coordinates={data.route.map((geopoint) => ({
+              latitude: geopoint.latitude,
+              longitude: geopoint.longitude,
+            }))}
+            strokeWidth={data.difficulty}
             strokeColor={getPolylineColor(index)}
+            tappable={true}
+            onPress={() => handlePolylinePress(data)}
+            
           />
+          
         ))}
         
       </MapView>
+      <View style={styles.buttonContainer}>
+        <Button title={showRoutes ? "Hide Routes" : "Show Routes"} onPress={showAllroutes} />
+      </View>
     </SafeAreaView>
   );
 };
@@ -170,5 +233,18 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject,
+  },
+  buttonContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 2,
+    elevation: 5,
   },
 });
