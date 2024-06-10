@@ -129,7 +129,9 @@ const fetchRoutes = async () => {
     const routesCollection = await firestore().collection('routes').get();
     routesCollection.forEach((doc) => {
       const data = doc.data() as RouteData;
-      const route = doc.data().route; // Get the route from the document
+      console.log("ROUTE DATA" , data);
+      const route = doc.data().route;
+      console.log('route name',doc.data().name);  // Get the route from the document
       console.log('route',route);  // the current route in the doc
       const difficulty = doc.data().difficulty; // Get the difficulty from the document
       const name = doc.data().name; // Get the name from the document
