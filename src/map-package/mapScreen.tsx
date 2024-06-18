@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {Alert, Platform, SafeAreaView, Button} from 'react-native';
 import {WithNavigation} from '../common';
 import {AppButton} from '../components/atom/appButton/appButton';
@@ -36,6 +36,14 @@ useEffect(() => {
 }, []);
 
 export const MapScreen: React.FC<MapScreenProps> = props => {
+  
+    //ADDING TOOLS FOR TRACKING USER LOCATION
+    const [tracking, setTracking] = useState<boolean>(false);
+    const watchId = useRef<number | null>(null);
+
+    // State variable to store tracked GeoPoints
+    const [trackedGeoPoints, setTrackedGeoPoints] = useState<GeoPointData[]>([]);
+
   // current selected route
   const [selectedRoute, setSelectedRoute] = useState<{
     route: GeoPointData[];
@@ -56,6 +64,38 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
       `Name: ${route.name}\nDifficulty: ${route.difficulty}`,
       [{text: 'OK'}],
     );
+
+  };
+
+  
+    //ADDING FUNC THAT TRACKING THE USER LOCATION
+    const startTracking =() => {
+      console.log("clicked on start tracking");
+      if (watchId.current === null) {
+        watchId.current = Geolocation.watchPosition(
+          position => {
+            console.log("made it");
+            const { latitude, longitude } = position.coords;
+            setLocation({ latitude, longitude });
+
+            // Update trackedGeoPoints with new GeoPoint
+            setTrackedGeoPoints((prevGeoPoints) => [...prevGeoPoints, { latitude, longitude }]);
+          },
+          error => console.log(error),
+          { enableHighAccuracy: true, distanceFilter: 0, interval: 1000 }
+        );
+        setTracking(true);
+      }
+    };
+
+    //ADDING A FUNCTION THAT STOP THE TRACK ON THE USER LOCATION
+    const stopTracking = () => {
+      if (tracking && watchId.current !== null) {
+        console.log(trackedGeoPoints);
+        Geolocation.clearWatch(watchId.current);
+        watchId.current = null;
+        setTracking(false);
+      }
   };
 
   // location
@@ -216,6 +256,9 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
           title={showRoutes ? 'Hide Routes' : 'Show Routes'}
           onPress={showAllroutes}
         />
+        <Button title="Start Tracking" onPress={startTracking} />
+        <Button title="Stop Tracking" onPress={stopTracking} />
+        
       </View>
     </SafeAreaView>
   );
