@@ -1,12 +1,12 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Alert, Platform, SafeAreaView, Button} from 'react-native';
+import {Alert, Platform, SafeAreaView, Button , Modal ,TextInput, Text} from 'react-native';
 import {WithNavigation} from '../common';
 import {AppButton} from '../components/atom/appButton/appButton';
 import {mapScreenStyle, mapStyle} from './mapScreenStyle';
 import MapView, {Marker, Polyline} from 'react-native-maps';
 import Geolocation from 'react-native-geolocation-service';
 import {PermissionsAndroid} from 'react-native';
-import {StyleSheet, View} from 'react-native';
+import { TouchableOpacity, StyleSheet, View} from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import GeoPoint from '@react-native-firebase/firestore';
 
@@ -40,6 +40,11 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     //ADDING TOOLS FOR TRACKING USER LOCATION
     const [tracking, setTracking] = useState<boolean>(false);
     const watchId = useRef<number | null>(null);
+
+
+    const [modalVisible, setModalVisible] = useState(false);
+    const [routeName, setRouteName] = useState('');
+    const [routeDifficulty, setRouteDifficulty] = useState('');
 
     // State variable to store tracked GeoPoints
     const [trackedGeoPoints, setTrackedGeoPoints] = useState<GeoPointData[]>([]);
@@ -95,7 +100,15 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
         Geolocation.clearWatch(watchId.current);
         watchId.current = null;
         setTracking(false);
+        setModalVisible(true);
       }
+  };
+
+  const handleAddRoute = () => {
+    addRouteToFirestore(routeName, routeDifficulty);
+    setModalVisible(false);
+    setRouteName('');
+    setRouteDifficulty('');
   };
 
   // location
@@ -200,6 +213,35 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     }
   };
 
+  const newRoute: RouteData = {
+    name: "New Route",
+    difficulty: 2, // assuming difficulty is a number
+    route: trackedGeoPoints
+  };
+
+
+
+
+  const addRouteToFirestore = async (name: string, difficulty: string) => {
+    try {
+      const routeWithGeoPoints = trackedGeoPoints.map(point => 
+        new firestore.GeoPoint(point.latitude, point.longitude)
+      );
+  
+      await firestore()
+        .collection('routes')
+        .add({
+          name,
+          difficulty: parseInt(difficulty),
+          route: routeWithGeoPoints
+        });
+  
+      console.log('Route added!');
+    } catch (error) {
+      console.error('Error adding route: ', error);
+    }
+  };
+
   useEffect(() => {
     getLocation();
     //fetchRoutes();
@@ -259,10 +301,50 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
         <Button title="Start Tracking" onPress={startTracking} />
         <Button title="Stop Tracking" onPress={stopTracking} />
         
+        
+        <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalView}>
+          <Text style={styles.modalText}>Enter Route Details</Text>
+          <TextInput
+            placeholder="Route Name"
+            placeholderTextColor="#4E5476"
+            value={routeName}
+            onChangeText={setRouteName}
+            style={styles.input}
+          />
+        <TextInput
+           placeholder="Route Difficulty"
+           placeholderTextColor="#4E5476"
+           value={routeDifficulty}
+           onChangeText={setRouteDifficulty}
+           keyboardType="numeric"
+           style={styles.input}
+          />
+          <Button title="Add Route" onPress={handleAddRoute}  />
+        </View>
+      </Modal>
       </View>
     </SafeAreaView>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // colors cycle for the polylines
 const getPolylineColor = (index: number): string => {
@@ -270,6 +352,11 @@ const getPolylineColor = (index: number): string => {
   const colorIndex = index % colors.length; // Use modulo to cycle through colors
   return colors[colorIndex];
 };
+
+
+
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -284,7 +371,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: 'white',
+    backgroundColor: '#c7cbdd',
     padding: 10,
     borderRadius: 5,
     shadowColor: '#000',
@@ -292,6 +379,47 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.8,
     shadowRadius: 2,
     elevation: 5,
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: '#a8b3c4',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4E5476',
+  },
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 10,
+    paddingLeft: 8,
+    width: 200,
+    backgroundColor: '#fff',
+  },
+  button: {
+    backgroundColor: '#841584',
+    padding: 10,
+    borderRadius: 5,
+  },
+  buttonText: {
+    color: '#ffffff',
+    textAlign: 'center',
+    fontSize: 16,
   },
 });
 
