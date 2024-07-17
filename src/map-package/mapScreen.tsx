@@ -40,8 +40,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     //ADDING TOOLS FOR TRACKING USER LOCATION
     const [tracking, setTracking] = useState<boolean>(false);
     const watchId = useRef<number | null>(null);
-
-
     const [modalVisible, setModalVisible] = useState(false);
     const [routeName, setRouteName] = useState('');
     const [routeDifficulty, setRouteDifficulty] = useState('');
@@ -104,6 +102,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
       }
   };
 
+  // handler for the add route button
   const handleAddRoute = () => {
     addRouteToFirestore(routeName, routeDifficulty);
     setModalVisible(false);
@@ -213,15 +212,17 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     }
   };
 
-  const newRoute: RouteData = {
+ /* const newRoute: RouteData = {
     name: "New Route",
-    difficulty: 2, // assuming difficulty is a number
+    difficulty: 2, 
     route: trackedGeoPoints
   };
+  */
 
 
 
-
+// adds the route to the firestore as a doc 
+// used after choosing a name and a difficulty
   const addRouteToFirestore = async (name: string, difficulty: string) => {
     try {
       const routeWithGeoPoints = trackedGeoPoints.map(point => 
@@ -336,25 +337,12 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
 
 
 
-
-
-
-
-
-
-
-
-
-
 // colors cycle for the polylines
 const getPolylineColor = (index: number): string => {
   const colors = ['#dc143c', '#00bfff', '#32cd32', '#ff1493', '#ffa500']; // Define your colors array
   const colorIndex = index % colors.length; // Use modulo to cycle through colors
   return colors[colorIndex];
 };
-
-
-
 
 
 
