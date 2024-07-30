@@ -1,35 +1,34 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Alert, Platform, SafeAreaView, Button} from 'react-native';
+import {Alert, Platform, SafeAreaView, Button , Modal ,TextInput, Text} from 'react-native';
 import {WithNavigation} from '../common';
 import {AppButton} from '../components/atom/appButton/appButton';
 import {mapScreenStyle, mapStyle} from './mapScreenStyle';
-import MapView, {Marker, Polyline} from 'react-native-maps';
+import MapView, {Marker, Polyline,Region } from 'react-native-maps';
 import Geolocation from 'react-native-geolocation-service';
 import {PermissionsAndroid} from 'react-native';
-import {StyleSheet, View} from 'react-native';
+import { TouchableOpacity, StyleSheet, View,  ActivityIndicator} from 'react-native';
 import firestore from '@react-native-firebase/firestore';
 import GeoPoint from '@react-native-firebase/firestore';
 
 type MapScreenProps = {} & WithNavigation;
 
-// represents the array of Geopoints for each doc
-interface GeoPointData {
+
+//INTERFACES
+  // represents the array of Geopoints for each doc
+  interface GeoPointData {
   latitude: number;
   longitude: number;
-}
-// represents the whole doc in the db
-interface RouteData {
+  }
+  // represents the whole doc in the db
+  interface RouteData {
   route: GeoPointData[];
   difficulty: number;
   name: string;
-}
+  }
 
 //const [routes, setRoutes] = useState<Array<Array<Geopoint>>>([]);
 
 const extractedRoutes: RouteData[] = [];
-
-// the array that holds all the docs
-// in here we save all the routes and its information from the firestore
 
 useEffect(() => {
   //fetchRoutes();
@@ -37,12 +36,19 @@ useEffect(() => {
 
 export const MapScreen: React.FC<MapScreenProps> = props => {
   
-    //ADDING TOOLS FOR TRACKING USER LOCATION
-    const [tracking, setTracking] = useState<boolean>(false);
-    const watchId = useRef<number | null>(null);
+  //ADDING TOOLS FOR TRACKING USER LOCATION
+  const [tracking, setTracking] = useState<boolean>(false);
+  const watchId = useRef<number | null>(null);
 
-    // State variable to store tracked GeoPoints
-    const [trackedGeoPoints, setTrackedGeoPoints] = useState<GeoPointData[]>([]);
+  // variable for popup modal 
+  const [modalVisible, setModalVisible] = useState(false);
+  const [routeName, setRouteName] = useState('');
+  const [routeDifficulty, setRouteDifficulty] = useState('');
+
+  const [mapRegion, setMapRegion] = useState<Region | null>(null);
+
+  // State variable to store tracked GeoPoints
+  const [trackedGeoPoints, setTrackedGeoPoints] = useState<GeoPointData[]>([]);
 
   // current selected route
   const [selectedRoute, setSelectedRoute] = useState<{
@@ -50,26 +56,14 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     difficulty: number;
     name: string;
   } | null>(null);
+
   const [showRoutes, setShowRoutes] = useState<boolean>(false);
 
-  //  Function to handle polyline press
-  const handlePolylinePress = (route: {
-    route: GeoPointData[];
-    difficulty: number;
-    name: string;
-  }) => {
-    setSelectedRoute(route);
-    Alert.alert(
-      'Route Information',
-      `Name: ${route.name}\nDifficulty: ${route.difficulty}`,
-      [{text: 'OK'}],
-    );
 
-  };
-
+//FUNCTIONS FOR DATABASE DATA
   
-    //ADDING FUNC THAT TRACKING THE USER LOCATION
-    const startTracking =() => {
+  //ADDING FUNC THAT TRACKING THE USER LOCATION
+  const startTracking =() => {
       console.log("clicked on start tracking");
       if (watchId.current === null) {
         watchId.current = Geolocation.watchPosition(
@@ -80,23 +74,77 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
 
             // Update trackedGeoPoints with new GeoPoint
             setTrackedGeoPoints((prevGeoPoints) => [...prevGeoPoints, { latitude, longitude }]);
+            setMapRegion({
+              latitude,
+              longitude,
+              latitudeDelta: 0.005, // More zoomed-in value
+              longitudeDelta: 0.005, // More zoomed-in value
+            });
           },
           error => console.log(error),
           { enableHighAccuracy: true, distanceFilter: 0, interval: 1000 }
         );
         setTracking(true);
       }
-    };
+  };
 
-    //ADDING A FUNCTION THAT STOP THE TRACK ON THE USER LOCATION
-    const stopTracking = () => {
+  //ADDING A FUNCTION THAT STOP THE TRACK ON THE USER LOCATION
+  const stopTracking = () => {
       if (tracking && watchId.current !== null) {
         console.log(trackedGeoPoints);
         Geolocation.clearWatch(watchId.current);
         watchId.current = null;
         setTracking(false);
+        setModalVisible(true);
       }
   };
+
+  // Function to get the routes from the database
+  const fetchRoutes = async () => {
+      try {
+        const routesCollection = await firestore().collection('routes').get();
+        routesCollection.forEach(doc => {
+          const data = doc.data() as RouteData;
+          const route = doc.data().route; // Get the route from the document
+  
+          // print route from db
+          console.log('route name (db)', data.name); // the current route name in the doc
+          console.log('route (db)', route); // the current route in the doc
+  
+          const difficulty = doc.data().difficulty; // Get the difficulty from the document
+          const name = doc.data().name; // Get the name from the document
+  
+          if (Array.isArray(route)) {
+            const geopoints: Array<GeoPointData> = route.map((point: any) => ({
+              latitude: point.latitude,
+              longitude: point.longitude,
+            }));
+  
+            const simplifiedData = simplifyRoute(data) as RouteData;
+            extractedRoutes.push(simplifiedData);
+  
+            // print route from array
+            var size: number = extractedRoutes.length;
+            console.log(
+              'extractedRoutes name (array):',
+              extractedRoutes[size - 1].name,
+            );
+            console.log(
+              'extractedRoutes (array):',
+              extractedRoutes[size - 1].route,
+            );
+          }
+        });
+        //  setRoutes(extractedRoutes);
+        setShowRoutes(true);
+        console.log(showRoutes);
+      } catch (error) {
+        console.error('Error fetching routes:', error);
+      }
+  };
+
+
+//LOCATION
 
   // location
   const [location, setLocation] = useState<{
@@ -156,55 +204,14 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     }
   };
 
-  // Function to get the routes from the database
-  const fetchRoutes = async () => {
-    try {
-      const routesCollection = await firestore().collection('routes').get();
-      routesCollection.forEach(doc => {
-        const data = doc.data() as RouteData;
-        const route = doc.data().route; // Get the route from the document
-
-        // print route from db
-        console.log('route name (db)', data.name); // the current route name in the doc
-        console.log('route (db)', route); // the current route in the doc
-
-        const difficulty = doc.data().difficulty; // Get the difficulty from the document
-        const name = doc.data().name; // Get the name from the document
-
-        if (Array.isArray(route)) {
-          const geopoints: Array<GeoPointData> = route.map((point: any) => ({
-            latitude: point.latitude,
-            longitude: point.longitude,
-          }));
-
-          const simplifiedData = simplifyRoute(data) as RouteData;
-          extractedRoutes.push(simplifiedData);
-
-          // print route from array
-          var size: number = extractedRoutes.length;
-          console.log(
-            'extractedRoutes name (array):',
-            extractedRoutes[size - 1].name,
-          );
-          console.log(
-            'extractedRoutes (array):',
-            extractedRoutes[size - 1].route,
-          );
-        }
-      });
-      //  setRoutes(extractedRoutes);
-      setShowRoutes(true);
-      console.log(showRoutes);
-    } catch (error) {
-      console.error('Error fetching routes:', error);
-    }
-  };
-
   useEffect(() => {
     getLocation();
     //fetchRoutes();
   }, []); // Run once when the component mounts
 
+
+
+//HANDLERS FOR BUTTONS AND OTHER INTERACTIVE COMPONENTS
   // showRoutes button function
   const showAllroutes = async () => {
     await fetchRoutes(); // Fetch the routes and update the state
@@ -212,15 +219,62 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     console.log(showRoutes);
   };
 
+  // Function to handle polyline press
+  const handlePolylinePress = (route: {
+    route: GeoPointData[];
+    difficulty: number;
+    name: string;
+  }) => {
+    setSelectedRoute(route);
+    Alert.alert(
+      'Route Information',
+      `Name: ${route.name}\nDifficulty: ${route.difficulty}`,
+      [{text: 'OK'}],
+    );
+
+  };
+
+  // handler for the add route button
+  const handleAddRoute = () => {
+    addRouteToFirestore(routeName, routeDifficulty);
+    setModalVisible(false);
+    setRouteName('');
+    setRouteDifficulty('');
+  };
+
+  // adds the route to the firestore as a doc 
+  // used after choosing a name and a difficulty
+  const addRouteToFirestore = async (name: string, difficulty: string) => {
+  try {
+    const routeWithGeoPoints = trackedGeoPoints.map(point => 
+      new firestore.GeoPoint(point.latitude, point.longitude)
+    );
+
+    await firestore()
+      .collection('routes')
+      .add({
+        name,
+        difficulty: parseInt(difficulty),
+        route: routeWithGeoPoints
+      });
+
+    console.log('Route added!');
+  } catch (error) {
+    console.error('Error adding route: ', error);
+  }
+ };
+
+
   return (
     <SafeAreaView style={mapScreenStyle.mainWrapper}>
+      
       <MapView
         style={mapScreenStyle.map}
         region={{
           latitude: location ? location.latitude : 37.78825,
           longitude: location ? location.longitude : -122.4324,
-          latitudeDelta: 0.0922,
-          longitudeDelta: 0.0421,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
         }}
         showsUserLocation={true}
         followsUserLocation={true}
@@ -250,6 +304,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
             onPress={() => handlePolylinePress(data)}
           />
         ))}
+        
       </MapView>
       <View style={styles.buttonContainer}>
         <Button
@@ -258,20 +313,53 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
         />
         <Button title="Start Tracking" onPress={startTracking} />
         <Button title="Stop Tracking" onPress={stopTracking} />
+       
         
+        <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalView}>
+          <Text style={styles.modalText}>Enter Route Details</Text>
+          <TextInput
+            placeholder="Route Name"
+            placeholderTextColor="#4E5476"
+            value={routeName}
+            onChangeText={setRouteName}
+            style={styles.input}
+          />
+        <TextInput
+           placeholder="Route Difficulty"
+           placeholderTextColor="#4E5476"
+           value={routeDifficulty}
+           onChangeText={setRouteDifficulty}
+           keyboardType="numeric"
+           style={styles.input}
+          />
+          <Button title="Add Route" onPress={handleAddRoute}  />
+        </View>
+      </Modal>
+      
       </View>
+      {tracking && (
+      <View style={styles.indicatorContainer}>
+        <ActivityIndicator size="large" color="#fffafa" />
+        <Text style={styles.indicatorText}>Tracking...</Text>
+      </View>
+    )}
+       
     </SafeAreaView>
   );
 };
 
-// colors cycle for the polylines
-const getPolylineColor = (index: number): string => {
-  const colors = ['#dc143c', '#00bfff', '#32cd32', '#ff1493', '#ffa500']; // Define your colors array
-  const colorIndex = index % colors.length; // Use modulo to cycle through colors
-  return colors[colorIndex];
-};
-
+// STYLES
 const styles = StyleSheet.create({
+  mainWrapper: {
+    flex: 1,
+    position: 'relative', // Ensure this is relative
+  },
   container: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
@@ -284,7 +372,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: 'white',
+    backgroundColor: '#c7cbdd',
     padding: 10,
     borderRadius: 5,
     shadowColor: '#000',
@@ -293,17 +381,78 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 5,
   },
+  indicatorContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  indicatorText: {
+    color: 'red', // Change this to the desired color
+    fontSize: 15,
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: '#a8b3c4',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalText: {
+    marginBottom: 15,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#4E5476',
+  },
+  input: {
+    width: '80%',
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+    color: 'black', // Text color
+  },
+  button: {
+    backgroundColor: '#841584',
+    padding: 10,
+    borderRadius: 5,
+  },
+  buttonText: {
+    color: '#ffffff',
+    textAlign: 'center',
+    fontSize: 16,
+  },
 });
 
-function simplifyRoute(data: RouteData): RouteData {
+// colors cycle for the polylines
+const getPolylineColor = (index: number): string => {
+  const colors = ['#dc143c', '#00bfff', '#32cd32', '#ff1493', '#ffa500']; // Define your colors array
+  const colorIndex = index % colors.length; // Use modulo to cycle through colors
+  return colors[colorIndex];
+};
+
+
+// ROUTE "FIXING" FUNCTIONS
+  function simplifyRoute(data: RouteData): RouteData {
   return {
     route: douglasPeucker(data.route, 0.0001),
     difficulty: data.difficulty,
     name: data.name,
   };
-}
+  }
 
-function douglasPeucker(
+  function douglasPeucker(
   points: GeoPointData[],
   epsilon: number,
 ): GeoPointData[] {
@@ -334,9 +483,9 @@ function douglasPeucker(
   } else {
     return [points[0], points[points.length - 1]];
   }
-}
+  }
 
-function getPerpendicularDistance(
+  function getPerpendicularDistance(
   point: GeoPointData,
   lineStart: GeoPointData,
   lineEnd: GeoPointData,
@@ -351,4 +500,4 @@ function getPerpendicularDistance(
   const denominator = Math.sqrt(Math.pow(y2 - y1, 2) + Math.pow(x2 - x1, 2));
 
   return numerator / denominator;
-}
+  }
