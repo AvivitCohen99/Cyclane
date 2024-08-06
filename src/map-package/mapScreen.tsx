@@ -52,6 +52,8 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   const [selectedLocation, setSelectedLocation] = useState<GeoPointData | null>(null);
   const [filteredData, setFilteredData] = useState<RouteWithDistance[]>([]);
   const [searchText, setSearchText] = useState<string>('');
+  const [showFlatList, setShowFlatList] = useState(true);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   // variable for popup modal 
   const [modalVisible, setModalVisible] = useState(false);
@@ -156,6 +158,8 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
       }
   };
 
+
+//FUNCTIONS FOR SEARCHING ROUTS
   const handleLocationSelect = async (data: any, details: any) => {
     // Extract coordinates from details
     const { lat, lng } = details.geometry.location;
@@ -197,6 +201,13 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     catch (error) {
       console.error(error);
     }
+  };
+
+  const handleRoutePress = (item: any) => {
+    console.log("Item pressed:", item,);
+    setSelectedItem(item);
+    setShowFlatList(false);
+    // Implement your logic here, like navigation, displaying details, etc.
   };
 
 //LOCATION
@@ -411,21 +422,27 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
           language: 'en',
         }}
       />
+      <View>
+      {showFlatList && (
+      
       <FlatList
         data={filteredData}
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => handleRoutePress(item)}>
           <View style={styles.itemContainer}>
             <Text style={styles.itemText}>Route: {item.name}</Text>
-            <Text style={styles.itemText}>Distance: {item.distance} meters</Text>
           </View>
+          </TouchableOpacity>
         )}
-      />
+      />)}
+      </View>
     </View>
     </SafeAreaView>
   );
 };
 
+//<Text style={styles.itemText}>Distance: {item.distance} meters</Text>
 // STYLES
 const styles = StyleSheet.create({
   mainWrapper: {
@@ -518,6 +535,7 @@ const styles = StyleSheet.create({
   },
   itemText: {
     fontSize: 18,
+    backgroundColor: '#c7cbdd',
   },
  },
 );
