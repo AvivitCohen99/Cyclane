@@ -7,12 +7,16 @@ import MapView, {Marker, Polyline,Region } from 'react-native-maps';
 import Geolocation from 'react-native-geolocation-service';
 import {PermissionsAndroid} from 'react-native';
 import { TouchableOpacity, StyleSheet, View,  ActivityIndicator} from 'react-native';
-import firestore from '@react-native-firebase/firestore';
+import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import GeoPoint from '@react-native-firebase/firestore';
+import { FlatList } from 'react-native';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { getDistance } from 'geolib';
 
 type MapScreenProps = {} & WithNavigation;
 
-
+// THE GOOGLE API KEY: AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs
+// THIS IS FOR THE GooglePlacesAutocomplete
 //INTERFACES
   // represents the array of Geopoints for each doc
   interface GeoPointData {
@@ -24,6 +28,10 @@ type MapScreenProps = {} & WithNavigation;
   route: GeoPointData[];
   difficulty: number;
   name: string;
+  }
+
+  interface RouteWithDistance extends RouteData {
+    distance: number;
   }
 
 //const [routes, setRoutes] = useState<Array<Array<Geopoint>>>([]);
@@ -39,6 +47,13 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   //ADDING TOOLS FOR TRACKING USER LOCATION
   const [tracking, setTracking] = useState<boolean>(false);
   const watchId = useRef<number | null>(null);
+
+  //ADDING TOOLS FOR SEARCH BAR
+  const [selectedLocation, setSelectedLocation] = useState<GeoPointData | null>(null);
+  const [filteredData, setFilteredData] = useState<RouteWithDistance[]>([]);
+  const [searchText, setSearchText] = useState<string>('');
+  const [showFlatList, setShowFlatList] = useState(true);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   // variable for popup modal 
   const [modalVisible, setModalVisible] = useState(false);
@@ -143,6 +158,57 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
       }
   };
 
+
+//FUNCTIONS FOR SEARCHING ROUTS
+  const handleLocationSelect = async (data: any, details: any) => {
+    // Extract coordinates from details
+    const { lat, lng } = details.geometry.location;
+    const userLocation: GeoPointData = { latitude: lat, longitude: lng };
+    console.log("details:");
+    console.log(details);
+    console.log("data:");
+    console.log(data);
+    console.log("userLocation:");
+    console.log(userLocation);
+
+    setSelectedLocation(userLocation);
+
+    // Fetch and filter routes based on the selected location
+    await fetchAndFilterRoutes(userLocation);
+  };
+
+  const fetchAndFilterRoutes = async (location: GeoPointData) => {
+    try {
+      const routesCollection = firestore().collection('routes') as FirebaseFirestoreTypes.CollectionReference<RouteData>;
+      const querySnapshot = await routesCollection.get();
+      const routes = querySnapshot.docs.map(doc => doc.data() as RouteData);
+
+      // Calculate distances and sort routes
+      const routesWithDistance: RouteWithDistance[] = routes.map(route => {
+        const distance = route.route.reduce((minDist, point) => {
+          const pointDistance = getDistance(location, point);
+          return Math.min(minDist, pointDistance);
+        }, Infinity);
+
+        return { ...route, distance } as RouteWithDistance;
+      });
+
+      // Sort by distance and get top 3
+      const sortedRoutes = routesWithDistance.sort((a, b) => a.distance - b.distance).slice(0, 3);
+      setFilteredData(sortedRoutes);
+
+    } 
+    catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleRoutePress = (item: any) => {
+    console.log("Item pressed:", item,);
+    setSelectedItem(item);
+    setShowFlatList(false);
+    // Implement your logic here, like navigation, displaying details, etc.
+  };
 
 //LOCATION
 
@@ -267,7 +333,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
 
   return (
     <SafeAreaView style={mapScreenStyle.mainWrapper}>
-      
       <MapView
         style={mapScreenStyle.map}
         region={{
@@ -304,7 +369,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
             onPress={() => handlePolylinePress(data)}
           />
         ))}
-        
       </MapView>
       <View style={styles.buttonContainer}>
         <Button
@@ -341,7 +405,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
           <Button title="Add Route" onPress={handleAddRoute}  />
         </View>
       </Modal>
-      
       </View>
       {tracking && (
       <View style={styles.indicatorContainer}>
@@ -349,28 +412,49 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
         <Text style={styles.indicatorText}>Tracking...</Text>
       </View>
     )}
-       
+    <View style={styles.autocompleteContainer}>
+       <GooglePlacesAutocomplete
+        placeholder="Search for a place"
+        fetchDetails={true}
+        onPress={handleLocationSelect}
+        query={{
+          key: "AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs",  
+          language: 'en',
+        }}
+      />
+      <View>
+      {showFlatList && (
+      
+      <FlatList
+        data={filteredData}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => handleRoutePress(item)}>
+          <View style={styles.itemContainer}>
+            <Text style={styles.itemText}>Route: {item.name}</Text>
+          </View>
+          </TouchableOpacity>
+        )}
+      />)}
+      </View>
+    </View>
     </SafeAreaView>
   );
 };
 
+//<Text style={styles.itemText}>Distance: {item.distance} meters</Text>
 // STYLES
 const styles = StyleSheet.create({
   mainWrapper: {
     flex: 1,
     position: 'relative', // Ensure this is relative
   },
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
   map: {
     ...StyleSheet.absoluteFillObject,
   },
   buttonContainer: {
     position: 'absolute',
-    top: 10,
+    bottom: 10, // Adjust bottom position as needed
     right: 10,
     backgroundColor: '#c7cbdd',
     padding: 10,
@@ -433,7 +517,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
   },
-});
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  autocompleteContainer: {
+    position: 'absolute',
+    top: 10, // Adjust top position as needed
+    left: 10, // Adjust left position as needed
+    width: '90%', // Adjust width as needed
+    zIndex: 2, // Ensure it's above other elements
+  },
+  itemContainer: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  itemText: {
+    fontSize: 18,
+    backgroundColor: '#c7cbdd',
+  },
+ },
+);
 
 // colors cycle for the polylines
 const getPolylineColor = (index: number): string => {
