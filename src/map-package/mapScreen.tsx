@@ -12,6 +12,7 @@ import GeoPoint from '@react-native-firebase/firestore';
 import { FlatList } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { getDistance } from 'geolib';
+import { Linking } from 'react-native';
 
 type MapScreenProps = {} & WithNavigation;
 
@@ -32,6 +33,28 @@ type MapScreenProps = {} & WithNavigation;
 
   interface RouteWithDistance extends RouteData {
     distance: number;
+  }
+
+  interface DirectionStep {
+    html_instructions: string;
+    distance: {
+      text: string;
+      value: number;
+    };
+    duration: {
+      text: string;
+      value: number;
+    };
+    start_location: {
+      lat: number;
+      lng: number;
+    };
+    end_location: {
+      lat: number;
+      lng: number;
+    };
+    maneuver?: string;
+    travel_mode: string;
   }
 
 //const [routes, setRoutes] = useState<Array<Array<Geopoint>>>([]);
@@ -72,7 +95,44 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     name: string;
   } | null>(null);
 
+  const [displayedRoutes, setDisplayedRoutes] = useState(extractedRoutes);
+
   const [showRoutes, setShowRoutes] = useState<boolean>(false);
+
+  const [textDirections, setTextDirections] = useState<string[]>([]);
+
+
+  const fetchDirections = async (startLocation: GeoPointData, endLocation: GeoPointData) => {
+    const apiKey = 'AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs';
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${startLocation.latitude},
+    ${startLocation.longitude}&destination=${endLocation.latitude},
+    ${endLocation.longitude}&mode=walking&key=${apiKey}`;
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+  
+      if (data.routes.length) {
+        const points = data.routes[0].overview_polyline.points;
+        const steps = data.routes[0].legs[0].steps;
+        return { points, steps };
+      } else {
+        console.error('No routes found');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching directions:', error);
+      return null;
+    }
+  };
+
+  const displayDirections = (steps: DirectionStep[]) => {
+    return steps.map((step, index) => (
+      <Text key={index} style={styles.directionText}>
+        {step.html_instructions.replace(/<[^>]+>/g, '')}
+      </Text>
+    ));
+  };
 
 
 //FUNCTIONS FOR DATABASE DATA
@@ -271,6 +331,10 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   };
 
   useEffect(() => {
+    console.log(textDirections); // Check the updated state here
+  }, [textDirections]); // Runs whenever textDirections updates
+
+  useEffect(() => {
     getLocation();
     //fetchRoutes();
   }, []); // Run once when the component mounts
@@ -295,10 +359,56 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     Alert.alert(
       'Route Information',
       `Name: ${route.name}\nDifficulty: ${route.difficulty}`,
-      [{text: 'OK'}],
+      [
+        {
+          text: 'Choose Route',
+          onPress: () => handleChooseRoute(route), // Add the button to show only this route
+        },
+        {
+          text: 'OK',
+          style: 'cancel', // This is the default OK button
+        },
+      ],
+      { cancelable: true }
     );
+    
+    const handleChooseRoute = async (route: {
+      route: GeoPointData[];
+      difficulty: number;
+      name: string;
+    }) => {
+      setDisplayedRoutes([route]); // Set the map to show only the selected route
+    
+      const startLocation = location!; // Assert that location is non-null // User's current location
+      const endLocation = route.route[0]; // Starting point of the selected route
+    
+      const directions = await fetchDirections(startLocation, endLocation);
+    
+      if (directions) {
+        // Display the polyline on the map
+      //  setDirectionsPolyline(directions.points);
+      // Map the steps to extract and clean the instructions, then set the state
+      console.log("before");
+      const directionsText = directions.steps.map((step: DirectionStep) =>
+        step.html_instructions.replace(/<[^>]+>/g, '')// Remove HTML tags
+      );
+      setTextDirections(directionsText); // Correctly set the state with the instructions
+      console.log(textDirections); // Check what's inside
+    
+        // Optionally, show the text directions
+        setTextDirections(directions.steps);
+        console.log(textDirections);
+      }
+    };
 
   };
+  
+  const navigateToRouteStart = (startPoint: GeoPointData) => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${startPoint.latitude},${startPoint.longitude}&travelmode=walking`;
+    Linking.openURL(url);
+  };
+
+
 
   // handler for the add route button
   const handleAddRoute = () => {
@@ -330,16 +440,17 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   }
  };
 
-
+ const startOfRoute = selectedRoute ? selectedRoute.route[0] : null;
   return (
     <SafeAreaView style={mapScreenStyle.mainWrapper}>
+      
       <MapView
         style={mapScreenStyle.map}
         region={{
           latitude: location ? location.latitude : 37.78825,
           longitude: location ? location.longitude : -122.4324,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
         }}
         showsUserLocation={true}
         followsUserLocation={true}
@@ -356,20 +467,58 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
         )}
 
         {/* Display a Polyline representing the custom routes */}
-        {extractedRoutes.map((data, index) => (
-          <Polyline
-            key={`route-${index}`}
-            coordinates={data.route.map(geopoint => ({
-              latitude: geopoint.latitude,
-              longitude: geopoint.longitude,
-            }))}
-            strokeWidth={data.difficulty}
-            strokeColor={getPolylineColor(index)}
-            tappable={true}
-            onPress={() => handlePolylinePress(data)}
+        {displayedRoutes.map((data, index) => (
+    <Polyline
+      key={`route-${index}`}
+      coordinates={data.route.map(geopoint => ({
+        latitude: geopoint.latitude,
+        longitude: geopoint.longitude,
+      }))}
+      strokeWidth={data.difficulty}
+      strokeColor={getPolylineColor(index)}
+      tappable={true}
+      onPress={() => handlePolylinePress(data)}
           />
         ))}
+        
+        {location &&  startOfRoute && (
+    <Polyline
+      coordinates={[
+        { latitude: location.latitude, longitude: location.longitude },
+        { latitude: startOfRoute.latitude, longitude: startOfRoute.longitude }
+      ]}
+      strokeWidth={4}
+      strokeColor="blue"
+      lineDashPattern={[2, 6]} // Dotted line pattern
+    />
+  )}
       </MapView>
+      { textDirections.length > 0 && (
+  <View style={styles.directionsContainer}>
+    {textDirections.map((direction, index) => {
+      // Check if direction is a DirectionStep object
+      if (typeof direction === 'object' && 'html_instructions' in direction) {
+        const step = direction as DirectionStep;
+        const plainText = step.html_instructions.replace(/<[^>]+>/g, ''); // Remove HTML tags
+        return (
+          <Text key={index} style={styles.directionText}>
+            {plainText}
+          </Text>
+        );
+      } else if (typeof direction === 'string') {
+        return (
+          <Text key={index} style={styles.directionText}>
+            {direction}
+          </Text>
+        );
+      }
+      return null; // Safeguard against other types
+    })}
+  </View>
+  
+)}
+
+
       <View style={styles.buttonContainer}>
         <Button
           title={showRoutes ? 'Hide Routes' : 'Show Routes'}
@@ -536,6 +685,20 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 18,
     backgroundColor: '#c7cbdd',
+  },
+  directionsContainer: {
+    position: 'absolute',
+    bottom: 100, // Adjust based on your layout
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    padding: 10,
+    borderRadius: 5,
+  },
+  directionText: {
+    fontSize: 14,
+    color: 'black',
+    marginBottom: 5,
   },
  },
 );
