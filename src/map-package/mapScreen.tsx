@@ -12,6 +12,8 @@ import GeoPoint from '@react-native-firebase/firestore';
 import { FlatList } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { getDistance } from 'geolib';
+import { LatLng } from 'react-native-maps';
+
 
 type MapScreenProps = {} & WithNavigation;
 
@@ -164,12 +166,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     // Extract coordinates from details
     const { lat, lng } = details.geometry.location;
     const userLocation: GeoPointData = { latitude: lat, longitude: lng };
-    console.log("details:");
-    console.log(details);
-    console.log("data:");
-    console.log(data);
-    console.log("userLocation:");
-    console.log(userLocation);
 
     setSelectedLocation(userLocation);
 
@@ -177,8 +173,10 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     await fetchAndFilterRoutes(userLocation);
   };
 
-  const fetchAndFilterRoutes = async (location: GeoPointData) => {
+  /*const fetchAndFilterRoutes = async (location: GeoPointData) => {
     try {
+      console.log("location:")
+      console.log(location);
       const routesCollection = firestore().collection('routes') as FirebaseFirestoreTypes.CollectionReference<RouteData>;
       const querySnapshot = await routesCollection.get();
       const routes = querySnapshot.docs.map(doc => doc.data() as RouteData);
@@ -189,20 +187,49 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
           const pointDistance = getDistance(location, point);
           return Math.min(minDist, pointDistance);
         }, Infinity);
-
+        console.log("distance");
+        console.log(distance);
         return { ...route, distance } as RouteWithDistance;
       });
 
       // Sort by distance and get top 3
       const sortedRoutes = routesWithDistance.sort((a, b) => a.distance - b.distance).slice(0, 3);
+      setShowFlatList(true);
       setFilteredData(sortedRoutes);
 
     } 
     catch (error) {
       console.error(error);
     }
-  };
+  };*/
+  const fetchAndFilterRoutes = async (location: GeoPointData) => {
+    try {
+      const querySnapshot = await firestore().collection('routes').get();
+      const routes = querySnapshot.docs
+        .map(doc => doc.data() as RouteData)
+        .filter(routeData => routeData.route.length > 0) // Skip routes with empty arrays
+        .map(routeData => {
+          const firstPoint = routeData.route[0];
+          const distance = getDistance(
+            { latitude: location.latitude, longitude: location.longitude },
+            { latitude: firstPoint.latitude, longitude: firstPoint.longitude }
+          );
+          return { ...routeData, distance };
+        });
 
+        // Sort the routes by distance and take the closest 3
+      const closestRoutes = routes.sort((a, b) => a.distance - b.distance).slice(0, 3);
+ 
+      //return closestRoutes;
+      setShowFlatList(true);
+      setFilteredData(closestRoutes);
+
+    } catch (error) {
+      console.error('Error fetching routes:', error);
+      return [];
+    }
+  };
+       
   const handleRoutePress = (item: any) => {
     console.log("Item pressed:", item,);
     setSelectedItem(item);
@@ -432,6 +459,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
           <TouchableOpacity onPress={() => handleRoutePress(item)}>
           <View style={styles.itemContainer}>
             <Text style={styles.itemText}>Route: {item.name}</Text>
+            <Text style={styles.itemText}>Distance: {item.distance} meters</Text>
           </View>
           </TouchableOpacity>
         )}
@@ -442,7 +470,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   );
 };
 
-//<Text style={styles.itemText}>Distance: {item.distance} meters</Text>
+//
 // STYLES
 const styles = StyleSheet.create({
   mainWrapper: {
