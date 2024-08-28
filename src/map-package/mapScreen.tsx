@@ -13,6 +13,7 @@ import { FlatList } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { getDistance } from 'geolib';
 import { LatLng } from 'react-native-maps';
+import { Linking } from 'react-native';
 
 
 type MapScreenProps = {} & WithNavigation;
@@ -75,6 +76,8 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   } | null>(null);
 
   const [showRoutes, setShowRoutes] = useState<boolean>(false);
+
+  const [displayedRoutes, setDisplayedRoutes] = useState(extractedRoutes);
 
 
 //FUNCTIONS FOR DATABASE DATA
@@ -319,12 +322,44 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     name: string;
   }) => {
     setSelectedRoute(route);
+  
     Alert.alert(
       'Route Information',
       `Name: ${route.name}\nDifficulty: ${route.difficulty}`,
-      [{text: 'OK'}],
+      [
+        {
+          text: 'Choose Route',
+          onPress: () => handleChooseRoute(route), // Add the button to show only this route
+        },
+        {
+          text: 'OK',
+          style: 'cancel', // This is the default OK button
+        },
+      ],
+      { cancelable: true }
     );
+  };
 
+  const handleChooseRoute = (route: {
+    route: GeoPointData[];
+    difficulty: number;
+    name: string;
+  }) => {
+    setDisplayedRoutes([route]); // Set the map to show only the selected route
+
+ // Get the starting point of the route
+ const startPoint = route.route[0];
+
+ // Provide navigation instructions
+ navigateToRouteStart(startPoint);
+
+
+
+  };
+
+  const navigateToRouteStart = (startPoint: GeoPointData) => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${startPoint.latitude},${startPoint.longitude}&travelmode=walking`;
+    Linking.openURL(url);
   };
 
   // handler for the add route button
@@ -380,22 +415,24 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
             title={'Current Location'}
             description={'This is the current location'}
           />
+          
         )}
+       
 
-        {/* Display a Polyline representing the custom routes */}
-        {extractedRoutes.map((data, index) => (
-          <Polyline
-            key={`route-${index}`}
-            coordinates={data.route.map(geopoint => ({
-              latitude: geopoint.latitude,
-              longitude: geopoint.longitude,
-            }))}
-            strokeWidth={data.difficulty}
-            strokeColor={getPolylineColor(index)}
-            tappable={true}
-            onPress={() => handlePolylinePress(data)}
-          />
-        ))}
+         {/* Display only the selected route or all routes */}
+  {displayedRoutes.map((data, index) => (
+    <Polyline
+      key={`route-${index}`}
+      coordinates={data.route.map(geopoint => ({
+        latitude: geopoint.latitude,
+        longitude: geopoint.longitude,
+      }))}
+      strokeWidth={data.difficulty}
+      strokeColor={getPolylineColor(index)}
+      tappable={true}
+      onPress={() => handlePolylinePress(data)}
+    />
+  ))}
       </MapView>
       <View style={styles.buttonContainer}>
         <Button
