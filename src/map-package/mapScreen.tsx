@@ -13,6 +13,8 @@ import { FlatList } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { getDistance } from 'geolib';
 import { LatLng } from 'react-native-maps';
+import { Linking } from 'react-native';
+import MapViewDirections from 'react-native-maps-directions';
 
 
 type MapScreenProps = {} & WithNavigation;
@@ -75,6 +77,13 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   } | null>(null);
 
   const [showRoutes, setShowRoutes] = useState<boolean>(false);
+
+  const [displayedRoutes, setDisplayedRoutes] = useState(extractedRoutes);
+
+  const[showRouteToStart,setShowRouteToStart]=useState<boolean>(false);
+  const [RouteStartLocation,setRouteStartLocation] = useState<GeoPointData | null>(null);
+  const [distance, setDistance] = useState(0);
+  const [duration, setDuration] = useState(0);
 
 
 //FUNCTIONS FOR DATABASE DATA
@@ -303,6 +312,38 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   }, []); // Run once when the component mounts
 
 
+  const fetchDirections = async (startLocation: GeoPointData, endLocation: GeoPointData) => {
+    const apiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${startLocation.latitude},${startLocation.longitude}&destination=${endLocation.latitude},${endLocation.longitude}&mode=walking&key=${apiKey}`;
+  
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+  
+      if (data.routes.length) {
+        const points = data.routes[0].overview_polyline.points;
+        const steps = data.routes[0].legs[0].steps;
+        return { points, steps };
+      } else {
+        console.error('No routes found');
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching directions:', error);
+      return null;
+    }
+  };
+
+ /* const displayDirections = (steps) => {
+    return steps.map((step, index) => (
+      <Text key={index}>{step.html_instructions.replace(/<[^>]+>/g, '')}</Text>
+    ));
+  };
+  */
+
+
+
+
 
 //HANDLERS FOR BUTTONS AND OTHER INTERACTIVE COMPONENTS
   // showRoutes button function
@@ -319,12 +360,54 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     name: string;
   }) => {
     setSelectedRoute(route);
+  
     Alert.alert(
       'Route Information',
       `Name: ${route.name}\nDifficulty: ${route.difficulty}`,
-      [{text: 'OK'}],
+      [
+        {
+          text: 'Choose Route',
+          onPress: () => handleChooseRoute(route), // Add the button to show only this route
+        },
+        {
+          text: 'OK',
+          style: 'cancel', // This is the default OK button
+        },
+      ],
+      { cancelable: true }
     );
+  };
 
+  const handleChooseRoute = (route: {
+    route: GeoPointData[];
+    difficulty: number;
+    name: string;
+  }) => {
+    setDisplayedRoutes([route]);// Set the map to show only the selected route
+    setShowRouteToStart(true);
+    setRouteStartLocation(route.route[0]);
+
+ // Get the starting point of the route
+ const startPoint = route.route[0];
+
+ // Provide navigation instructions
+ //navigateToRouteStart(startPoint);
+
+
+
+  };
+
+  const traceRouteOnReady = (args: any) => {
+    console.log('Trace Route On Ready Args:', args); // Log the full object
+    if (args) {
+      setDistance(args.distance);
+      setDuration(args.duration);
+    }
+  };
+
+  const navigateToRouteStart = (startPoint: GeoPointData) => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${startPoint.latitude},${startPoint.longitude}&travelmode=walking`;
+    Linking.openURL(url);
   };
 
   // handler for the add route button
@@ -380,23 +463,55 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
             title={'Current Location'}
             description={'This is the current location'}
           />
+          
         )}
+        {location && RouteStartLocation && (
+  <MapViewDirections
+    origin={{
+      latitude: location.latitude,
+      longitude: location.longitude
+    }}
+    destination={{
+      latitude: RouteStartLocation.latitude,
+      longitude: RouteStartLocation.longitude
+    }}
+    apikey={"AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs"}
+    strokeColor="#6644ff"
+    strokeWidth={4}
+    onReady={traceRouteOnReady}
+  />
+)}
+      
 
-        {/* Display a Polyline representing the custom routes */}
-        {extractedRoutes.map((data, index) => (
-          <Polyline
-            key={`route-${index}`}
-            coordinates={data.route.map(geopoint => ({
-              latitude: geopoint.latitude,
-              longitude: geopoint.longitude,
-            }))}
-            strokeWidth={data.difficulty}
-            strokeColor={getPolylineColor(index)}
-            tappable={true}
-            onPress={() => handlePolylinePress(data)}
-          />
-        ))}
+
+
+         {/* Display only the selected route or all routes */}
+  {displayedRoutes.map((data, index) => (
+    <Polyline
+      key={`route-${index}`}
+      coordinates={data.route.map(geopoint => ({
+        latitude: geopoint.latitude,
+        longitude: geopoint.longitude,
+      }))}
+      strokeWidth={data.difficulty}
+      strokeColor={getPolylineColor(index)}
+      tappable={true}
+      onPress={() => handlePolylinePress(data)}
+    />
+  ))}
       </MapView>
+
+      <View style={styles.infoBox}>
+  {distance && duration ? (
+    <View style={{ padding: 10, backgroundColor: '#fff', borderRadius: 10 }}>
+      <Text>Distance: {distance.toFixed(2)}</Text>
+      <Text>Duration: {Math.ceil(duration)} min</Text>
+    </View>
+  ) : null}
+</View>
+
+
+
       <View style={styles.buttonContainer}>
         <Button
           title={showRoutes ? 'Hide Routes' : 'Show Routes'}
@@ -421,6 +536,8 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
             onChangeText={setRouteName}
             style={styles.input}
           />
+          
+        
         <TextInput
            placeholder="Route Difficulty"
            placeholderTextColor="#4E5476"
@@ -564,6 +681,13 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 18,
     backgroundColor: '#c7cbdd',
+  },
+  infoBox: {
+    position: 'absolute',
+    top: 60,  // Adjust the top position as needed
+    left: 10,
+    right: 10,
+    zIndex: 1000,  // Ensure it appears above other components
   },
  },
 );
