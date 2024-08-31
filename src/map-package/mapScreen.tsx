@@ -114,6 +114,8 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
       }
   };
 
+
+
   //ADDING A FUNCTION THAT STOP THE TRACK ON THE USER LOCATION
   const stopTracking = () => {
       if (tracking && watchId.current !== null) {
@@ -478,6 +480,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     apikey={"AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs"}
     strokeColor="#6644ff"
     strokeWidth={4}
+    mode="BICYCLING" // Set travel mode to bicycle
     onReady={traceRouteOnReady}
   />
 )}
@@ -504,7 +507,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
       <View style={styles.infoBox}>
   {distance && duration ? (
     <View style={{ padding: 10, backgroundColor: '#fff', borderRadius: 10 }}>
-      <Text>Distance: {distance.toFixed(2)}</Text>
+      <Text>Distance: {(distance * 1609.34 / 1000).toFixed(2)} Kilometers</Text>
       <Text>Duration: {Math.ceil(duration)} min</Text>
     </View>
   ) : null}
