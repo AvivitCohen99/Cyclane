@@ -15,6 +15,7 @@ import { getDistance } from 'geolib';
 import { LatLng } from 'react-native-maps';
 import { Linking } from 'react-native';
 import MapViewDirections from 'react-native-maps-directions';
+import Directions from 'react-native-maps-directions';
 
 
 type MapScreenProps = {} & WithNavigation;
@@ -46,6 +47,15 @@ useEffect(() => {
   //fetchRoutes();
 }, []);
 
+//LOCATION
+
+  // location
+  const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+
 export const MapScreen: React.FC<MapScreenProps> = props => {
   
   //ADDING TOOLS FOR TRACKING USER LOCATION
@@ -57,7 +67,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   const [filteredData, setFilteredData] = useState<RouteWithDistance[]>([]);
   const [searchText, setSearchText] = useState<string>('');
   const [showFlatList, setShowFlatList] = useState(true);
-  const [selectedItem, setSelectedItem] = useState(null);
 
   // variable for popup modal 
   const [modalVisible, setModalVisible] = useState(false);
@@ -76,6 +85,19 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     name: string;
   } | null>(null);
 
+  //Directions const 
+  const [origin, setOrigin] = React.useState<LatLng>({
+    latitude: 37.78825,
+    longitude: -122.4324,
+  });
+  
+  const [destination, setDestination] = React.useState<LatLng>({
+    latitude: 37.78825,
+    longitude: -122.4324,
+  });
+
+  const [currentWaypointIndex, setCurrentWaypointIndex] = useState(0);
+
   const [showRoutes, setShowRoutes] = useState<boolean>(false);
 
   const [displayedRoutes, setDisplayedRoutes] = useState(extractedRoutes);
@@ -84,10 +106,42 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   const [RouteStartLocation,setRouteStartLocation] = useState<GeoPointData | null>(null);
   const [distance, setDistance] = useState(0);
   const [duration, setDuration] = useState(0);
+  
 
 
 //FUNCTIONS FOR DATABASE DATA
   
+  //FUNCTIONS FOR DIRECTIONS
+  const updateDestination = () => {
+    if(selectedRoute)
+    {
+      console.log("in line 118 function update destination");
+      console.log(selectedLocation);
+    if (currentWaypointIndex < selectedRoute.route.length - 1) {
+      setDestination(selectedRoute.route[currentWaypointIndex + 1]);
+      setCurrentWaypointIndex(currentWaypointIndex + 1);
+    }
+  }
+  };
+
+  // Call this function when the user reaches the current destination
+  const checkProximityToWaypoint = () => {
+    if (location && selectedRoute) {
+      const distanceToNextWaypoint = getDistance(
+        location,
+        selectedRoute.route[currentWaypointIndex]
+      );
+      if (distanceToNextWaypoint < 50) { // Adjust this threshold as needed
+        updateDestination();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(checkProximityToWaypoint, 1000);
+    return () => clearInterval(interval);
+  }, [location, currentWaypointIndex]);
+
   //ADDING FUNC THAT TRACKING THE USER LOCATION
   const startTracking =() => {
       console.log("clicked on start tracking");
@@ -184,35 +238,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     await fetchAndFilterRoutes(userLocation);
   };
 
-  /*const fetchAndFilterRoutes = async (location: GeoPointData) => {
-    try {
-      console.log("location:")
-      console.log(location);
-      const routesCollection = firestore().collection('routes') as FirebaseFirestoreTypes.CollectionReference<RouteData>;
-      const querySnapshot = await routesCollection.get();
-      const routes = querySnapshot.docs.map(doc => doc.data() as RouteData);
-
-      // Calculate distances and sort routes
-      const routesWithDistance: RouteWithDistance[] = routes.map(route => {
-        const distance = route.route.reduce((minDist, point) => {
-          const pointDistance = getDistance(location, point);
-          return Math.min(minDist, pointDistance);
-        }, Infinity);
-        console.log("distance");
-        console.log(distance);
-        return { ...route, distance } as RouteWithDistance;
-      });
-
-      // Sort by distance and get top 3
-      const sortedRoutes = routesWithDistance.sort((a, b) => a.distance - b.distance).slice(0, 3);
-      setShowFlatList(true);
-      setFilteredData(sortedRoutes);
-
-    } 
-    catch (error) {
-      console.error(error);
-    }
-  };*/
   const fetchAndFilterRoutes = async (location: GeoPointData) => {
     try {
       const querySnapshot = await firestore().collection('routes').get();
@@ -243,18 +268,9 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
        
   const handleRoutePress = (item: any) => {
     console.log("Item pressed:", item,);
-    setSelectedItem(item);
+    setSelectedRoute(item);
     setShowFlatList(false);
-    // Implement your logic here, like navigation, displaying details, etc.
   };
-
-//LOCATION
-
-  // location
-  const [location, setLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
 
   // Function to get permission for location
   const requestLocationPermission = async () => {
@@ -484,9 +500,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     onReady={traceRouteOnReady}
   />
 )}
-      
-
-
 
          {/* Display only the selected route or all routes */}
   {displayedRoutes.map((data, index) => (
