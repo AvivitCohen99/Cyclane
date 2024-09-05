@@ -15,6 +15,10 @@ import { getDistance } from 'geolib';
 import { LatLng } from 'react-native-maps';
 import { Linking } from 'react-native';
 import MapViewDirections from 'react-native-maps-directions';
+<<<<<<< Updated upstream
+=======
+import Directions from 'react-native-maps-directions';
+>>>>>>> Stashed changes
 
 
 type MapScreenProps = {} & WithNavigation;
@@ -42,9 +46,9 @@ type MapScreenProps = {} & WithNavigation;
 
 const extractedRoutes: RouteData[] = [];
 
-useEffect(() => {
-  //fetchRoutes();
-}, []);
+
+ 
+
 
 export const MapScreen: React.FC<MapScreenProps> = props => {
   
@@ -57,7 +61,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   const [filteredData, setFilteredData] = useState<RouteWithDistance[]>([]);
   const [searchText, setSearchText] = useState<string>('');
   const [showFlatList, setShowFlatList] = useState(true);
-  const [selectedItem, setSelectedItem] = useState(null);
 
   // variable for popup modal 
   const [modalVisible, setModalVisible] = useState(false);
@@ -68,6 +71,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
 
   // State variable to store tracked GeoPoints
   const [trackedGeoPoints, setTrackedGeoPoints] = useState<GeoPointData[]>([]);
+  const[firstPointOfSelectedRoute,setfirstPointOfSelectedRoute] = useState<GeoPointData | null>(null);
 
   // current selected route
   const [selectedRoute, setSelectedRoute] = useState<{
@@ -75,6 +79,19 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     difficulty: number;
     name: string;
   } | null>(null);
+
+  //Directions const 
+  const [origin, setOrigin] = React.useState<LatLng>({
+    latitude: 37.78825,
+    longitude: -122.4324,
+  });
+  
+  const [destination, setDestination] = React.useState<LatLng>({
+    latitude: 37.78825,
+    longitude: -122.4324,
+  });
+
+  const [currentWaypointIndex, setCurrentWaypointIndex] = useState(0);
 
   const [showRoutes, setShowRoutes] = useState<boolean>(false);
 
@@ -84,10 +101,66 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   const [RouteStartLocation,setRouteStartLocation] = useState<GeoPointData | null>(null);
   const [distance, setDistance] = useState(0);
   const [duration, setDuration] = useState(0);
+<<<<<<< Updated upstream
+=======
+  const mapRef = useRef<MapView>(null);
+  
+
+  //LOCATION
+   // location
+   const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  
+>>>>>>> Stashed changes
 
 
 //FUNCTIONS FOR DATABASE DATA
   
+  //FUNCTIONS FOR DIRECTIONS
+  const updateDestination = () => {
+    if (selectedRoute) {
+      console.log(selectedRoute);
+      if (currentWaypointIndex < selectedRoute.route.length - 1) {
+        const nextWaypoint = selectedRoute.route[currentWaypointIndex + 1];
+        setDestination(nextWaypoint); // Update destination to the next waypoint
+        console.log("setDestination in updateDest " + nextWaypoint);
+        setCurrentWaypointIndex(currentWaypointIndex + 1); // Move to the next waypoint
+      } else {
+        // When all waypoints are covered, stop navigation
+        setShowRouteToStart(false);
+        Alert.alert('You have reached your destination');
+      }
+    }
+  };
+
+  // Call this function when the user reaches the current destination
+  const checkProximityToWaypoint = () => {
+    if (location && selectedRoute) {
+     // console.log("in checkProximityToWaypoint");
+      const distanceToNextWaypoint = getDistance(
+        location,
+        selectedRoute.route[currentWaypointIndex]
+      );
+  
+      if (distanceToNextWaypoint < 50) { // Adjust this threshold as needed
+        updateDestination(); // Call updateDestination to move to the next point
+      }
+    }
+  };
+  
+  // Call this periodically to check the proximity
+useEffect(() => {
+  if (selectedRoute) {  // Only start checking when a route is selected
+    console.log("Proximity checking started");
+    const interval = setInterval(checkProximityToWaypoint, 1000); // Adjust the interval if needed
+    return () => clearInterval(interval); // Clean up on unmount
+  }
+    
+}, [location, currentWaypointIndex, selectedRoute]);
+
+
   //ADDING FUNC THAT TRACKING THE USER LOCATION
   const startTracking =() => {
       console.log("clicked on start tracking");
@@ -184,35 +257,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     await fetchAndFilterRoutes(userLocation);
   };
 
-  /*const fetchAndFilterRoutes = async (location: GeoPointData) => {
-    try {
-      console.log("location:")
-      console.log(location);
-      const routesCollection = firestore().collection('routes') as FirebaseFirestoreTypes.CollectionReference<RouteData>;
-      const querySnapshot = await routesCollection.get();
-      const routes = querySnapshot.docs.map(doc => doc.data() as RouteData);
-
-      // Calculate distances and sort routes
-      const routesWithDistance: RouteWithDistance[] = routes.map(route => {
-        const distance = route.route.reduce((minDist, point) => {
-          const pointDistance = getDistance(location, point);
-          return Math.min(minDist, pointDistance);
-        }, Infinity);
-        console.log("distance");
-        console.log(distance);
-        return { ...route, distance } as RouteWithDistance;
-      });
-
-      // Sort by distance and get top 3
-      const sortedRoutes = routesWithDistance.sort((a, b) => a.distance - b.distance).slice(0, 3);
-      setShowFlatList(true);
-      setFilteredData(sortedRoutes);
-
-    } 
-    catch (error) {
-      console.error(error);
-    }
-  };*/
   const fetchAndFilterRoutes = async (location: GeoPointData) => {
     try {
       const querySnapshot = await firestore().collection('routes').get();
@@ -241,20 +285,31 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     }
   };
        
-  const handleRoutePress = (item: any) => {
-    console.log("Item pressed:", item,);
-    setSelectedItem(item);
+  const handleRoutePress = (item: RouteWithDistance) => {
+    console.log("Item pressed:", item);
+    setSelectedRoute(item);  
     setShowFlatList(false);
-    // Implement your logic here, like navigation, displaying details, etc.
+    const firstPoint = item.route[0];
+    // Set the first waypoint for the directions
+    if (location) {
+      setOrigin(location); // Current location is the origin
+      setDestination(firstPoint); // Set the first point as the destination
+      console.log("setDestination in hadnleRoutePress" + firstPoint);
+      setCurrentWaypointIndex(0);
+      console.log("line 291"); // Reset waypoint index
+      setShowRouteToStart(true); // Enable showing directions
+    }
+  
+    // Animate to the first point of the selected route
+    if (mapRef.current && item.route && item.route.length > 0) {
+      mapRef.current.animateToRegion({
+        latitude: firstPoint.latitude,
+        longitude: firstPoint.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      }, 1000);
+    }
   };
-
-//LOCATION
-
-  // location
-  const [location, setLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
 
   // Function to get permission for location
   const requestLocationPermission = async () => {
@@ -310,12 +365,38 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
 
   useEffect(() => {
     getLocation();
-    //fetchRoutes();
-  }, []); // Run once when the component mounts
+  },[]); // Run once when the component mounts
 
 
+<<<<<<< Updated upstream
   const fetchDirections = async (startLocation: GeoPointData, endLocation: GeoPointData) => {
     const apiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
+=======
+  useEffect(() => {
+    if (location && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: location.latitude,
+        longitude: location.longitude,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      }, 1000); // Animation duration in milliseconds
+    }
+  }, [location]); 
+
+
+
+
+
+
+
+
+
+
+  
+
+  const fetchDirections = async (startLocation: GeoPointData, endLocation: GeoPointData) => {
+    const apiKey = "AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs";
+>>>>>>> Stashed changes
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${startLocation.latitude},${startLocation.longitude}&destination=${endLocation.latitude},${endLocation.longitude}&mode=walking&key=${apiKey}`;
   
     try {
@@ -343,9 +424,12 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   };
   */
 
+<<<<<<< Updated upstream
 
 
 
+=======
+>>>>>>> Stashed changes
 
 //HANDLERS FOR BUTTONS AND OTHER INTERACTIVE COMPONENTS
   // showRoutes button function
@@ -385,18 +469,39 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     difficulty: number;
     name: string;
   }) => {
+<<<<<<< Updated upstream
     setDisplayedRoutes([route]);// Set the map to show only the selected route
     setShowRouteToStart(true);
     setRouteStartLocation(route.route[0]);
 
  // Get the starting point of the route
  const startPoint = route.route[0];
+=======
+    //setDisplayedRoutes([route]);// Set the map to show only the selected route
+    setShowRouteToStart(true);
+    //setRouteStartLocation(route.route[0]);
+    //setSelectedRoute(route);
+
+ // Get the starting point of the route
+ const startPoint = route.route[0];
+ if (location) {
+  setOrigin(location); // Current location is the origin
+  setDestination(startPoint);
+  console.log("setDestination in chooseRoute" + startPoint); // Set the first point as the destination
+  setCurrentWaypointIndex(0);
+  console.log("line 461"); // Reset waypoint index
+  setShowRouteToStart(true); // Enable showing directions
+}
+>>>>>>> Stashed changes
 
  // Provide navigation instructions
  //navigateToRouteStart(startPoint);
 
+<<<<<<< Updated upstream
 
 
+=======
+>>>>>>> Stashed changes
   };
 
   const traceRouteOnReady = (args: any) => {
@@ -443,6 +548,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
  };
 
 
+<<<<<<< Updated upstream
   return (
     <SafeAreaView style={mapScreenStyle.mainWrapper}>
       <MapView
@@ -519,11 +625,45 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
         <Button
           title={showRoutes ? 'Hide Routes' : 'Show Routes'}
           onPress={showAllroutes}
+=======
+
+
+ /* region={{
+  latitude: location ? location.latitude : 37.78825,
+  longitude: location ? location.longitude : -122.4324,
+  latitudeDelta: 0.005,
+  longitudeDelta: 0.005,
+}}
+  */
+
+
+
+return (
+  <SafeAreaView style={mapScreenStyle.mainWrapper}>
+    <MapView
+    ref={mapRef}
+      style={mapScreenStyle.map}
+      region={{
+        latitude: location ? location.latitude : 37.78825,
+        longitude: location ? location.longitude : -122.4324,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      }}
+      showsUserLocation={true}
+      followsUserLocation={true}
+      customMapStyle={mapStyle}>
+      {location && (
+        <Marker
+          coordinate={{
+            latitude: location.latitude,
+            longitude: location.longitude,
+          }}
+          title={'Current Location'}
+          description={'This is the current location'}
+>>>>>>> Stashed changes
         />
-        <Button title="Start Tracking" onPress={startTracking} />
-        <Button title="Stop Tracking" onPress={stopTracking} />
-       
         
+<<<<<<< Updated upstream
         <Modal
         animationType="slide"
         transparent={true}
@@ -568,26 +708,124 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
           key: "AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs",  
           language: 'en',
         }}
+=======
+      )}
+      {location && destination && showRouteToStart && (
+  <MapViewDirections
+    origin={location} // Current location is the origin
+    destination={destination} // Destination is updated dynamically
+    apikey={"AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs"}
+    strokeColor="#6644ff"
+    strokeWidth={4}
+    mode="BICYCLING" // Set travel mode to bicycle
+    onReady={traceRouteOnReady}
+  />
+)}
+    
+
+
+
+       {/* Display only the selected route or all routes */}
+{displayedRoutes.map((data, index) => (
+  <Polyline
+    key={`route-${index}`}
+    coordinates={data.route.map(geopoint => ({
+      latitude: geopoint.latitude,
+      longitude: geopoint.longitude,
+    }))}
+    strokeWidth={data.difficulty}
+    strokeColor={getPolylineColor(index)}
+    tappable={true}
+    onPress={() => handlePolylinePress(data)}
+  />
+))}
+    </MapView>
+
+    <View style={styles.infoBox}>
+{distance && duration ? (
+  <View style={{ padding: 10, backgroundColor: '#fff', borderRadius: 10 }}>
+    <Text>Distance: {(distance * 1609.34 / 1000).toFixed(2)} Kilometers</Text>
+    <Text>Duration: {Math.ceil(duration)} min</Text>
+  </View>
+) : null}
+</View>
+
+
+
+    <View style={styles.buttonContainer}>
+      <Button
+        title={showRoutes ? 'Hide Routes' : 'Show Routes'}
+        onPress={showAllroutes}
+>>>>>>> Stashed changes
       />
-      <View>
-      {showFlatList && (
+      <Button title="Start Tracking" onPress={startTracking} />
+      <Button title="Stop Tracking" onPress={stopTracking} />
+     
       
-      <FlatList
-        data={filteredData}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => handleRoutePress(item)}>
-          <View style={styles.itemContainer}>
-            <Text style={styles.itemText}>Route: {item.name}</Text>
-            <Text style={styles.itemText}>Distance: {item.distance} meters</Text>
-          </View>
-          </TouchableOpacity>
-        )}
-      />)}
+      <Modal
+      animationType="slide"
+      transparent={true}
+      visible={modalVisible}
+      onRequestClose={() => setModalVisible(false)}
+    >
+      <View style={styles.modalView}>
+        <Text style={styles.modalText}>Enter Route Details</Text>
+        <TextInput
+          placeholder="Route Name"
+          placeholderTextColor="#4E5476"
+          value={routeName}
+          onChangeText={setRouteName}
+          style={styles.input}
+        />
+        
+      
+      <TextInput
+         placeholder="Route Difficulty"
+         placeholderTextColor="#4E5476"
+         value={routeDifficulty}
+         onChangeText={setRouteDifficulty}
+         keyboardType="numeric"
+         style={styles.input}
+        />
+        <Button title="Add Route" onPress={handleAddRoute}  />
       </View>
+    </Modal>
     </View>
-    </SafeAreaView>
-  );
+    {tracking && (
+    <View style={styles.indicatorContainer}>
+      <ActivityIndicator size="large" color="#fffafa" />
+      <Text style={styles.indicatorText}>Tracking...</Text>
+    </View>
+  )}
+  <View style={styles.autocompleteContainer}>
+     <GooglePlacesAutocomplete
+      placeholder="Search for a place"
+      fetchDetails={true}
+      onPress={handleLocationSelect}
+      query={{
+        key: "AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs",  
+        language: 'en',
+      }}
+    />
+    <View>
+    {showFlatList && (
+    
+    <FlatList
+      data={filteredData}
+      keyExtractor={(item, index) => index.toString()}
+      renderItem={({ item }) => (
+        <TouchableOpacity onPress={() => handleRoutePress(item)}>
+        <View style={styles.itemContainer}>
+          <Text style={styles.itemText}>Route: {item.name}</Text>
+          <Text style={styles.itemText}>Distance: {item.distance} meters</Text>
+        </View>
+        </TouchableOpacity>
+      )}
+    />)}
+    </View>
+  </View>
+  </SafeAreaView>
+);
 };
 
 //
