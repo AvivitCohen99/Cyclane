@@ -116,7 +116,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     if(selectedRoute)
     {
       console.log("in line 118 function update destination");
-      console.log(selectedLocation);
+      console.log(selectedRoute);
     if (currentWaypointIndex < selectedRoute.route.length - 1) {
       setDestination(selectedRoute.route[currentWaypointIndex + 1]);
       setCurrentWaypointIndex(currentWaypointIndex + 1);
@@ -330,8 +330,8 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   }, []); // Run once when the component mounts
 
 
-  const fetchDirections = async (startLocation: GeoPointData, endLocation: GeoPointData) => {
-    const apiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
+ /* const fetchDirections = async (startLocation: GeoPointData, endLocation: GeoPointData) => {
+    const apiKey = "AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs";
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${startLocation.latitude},${startLocation.longitude}&destination=${endLocation.latitude},${endLocation.longitude}&mode=walking&key=${apiKey}`;
   
     try {
@@ -350,7 +350,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
       console.error('Error fetching directions:', error);
       return null;
     }
-  };
+  };*/
 
  /* const displayDirections = (steps) => {
     return steps.map((step, index) => (
@@ -358,9 +358,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     ));
   };
   */
-
-
-
 
 
 //HANDLERS FOR BUTTONS AND OTHER INTERACTIVE COMPONENTS
