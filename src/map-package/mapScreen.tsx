@@ -1,33 +1,32 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Alert, Platform, SafeAreaView, Button , Modal ,TextInput, Text} from 'react-native';
 import {WithNavigation} from '../common';
-import {AppButton} from '../components/atom/appButton/appButton';
 import {mapScreenStyle, mapStyle} from './mapScreenStyle';
 import MapView, {Marker, Polyline,Region } from 'react-native-maps';
 import Geolocation from 'react-native-geolocation-service';
 import {PermissionsAndroid} from 'react-native';
 import { TouchableOpacity, StyleSheet, View,  ActivityIndicator} from 'react-native';
 import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
-import GeoPoint from '@react-native-firebase/firestore';
 import { FlatList } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { getDistance } from 'geolib';
 import { LatLng } from 'react-native-maps';
 import { Linking } from 'react-native';
 import MapViewDirections from 'react-native-maps-directions';
-import Directions from 'react-native-maps-directions';
 
 
 type MapScreenProps = {} & WithNavigation;
 
 // THE GOOGLE API KEY: AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs
-// THIS IS FOR THE GooglePlacesAutocomplete
+
 //INTERFACES
+
   // represents the array of Geopoints for each doc
   interface GeoPointData {
   latitude: number;
   longitude: number;
   }
+
   // represents the whole doc in the db
   interface RouteData {
   route: GeoPointData[];
@@ -35,17 +34,12 @@ type MapScreenProps = {} & WithNavigation;
   name: string;
   }
 
+  // refering to the Direction API
   interface RouteWithDistance extends RouteData {
     distance: number;
   }
 
-//const [routes, setRoutes] = useState<Array<Array<Geopoint>>>([]);
-
 const extractedRoutes: RouteData[] = [];
-
-
- 
-
 
 export const MapScreen: React.FC<MapScreenProps> = props => {
   
@@ -56,7 +50,6 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   //ADDING TOOLS FOR SEARCH BAR
   const [selectedLocation, setSelectedLocation] = useState<GeoPointData | null>(null);
   const [filteredData, setFilteredData] = useState<RouteWithDistance[]>([]);
-  const [searchText, setSearchText] = useState<string>('');
   const [showFlatList, setShowFlatList] = useState(true);
 
   // variable for popup modal 
@@ -64,11 +57,8 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
   const [routeName, setRouteName] = useState('');
   const [routeDifficulty, setRouteDifficulty] = useState('');
 
-  const [mapRegion, setMapRegion] = useState<Region | null>(null);
-
   // State variable to store tracked GeoPoints
   const [trackedGeoPoints, setTrackedGeoPoints] = useState<GeoPointData[]>([]);
-  const[firstPointOfSelectedRoute,setfirstPointOfSelectedRoute] = useState<GeoPointData | null>(null);
 
   // current selected route
   const [selectedRoute, setSelectedRoute] = useState<{
@@ -77,7 +67,7 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     name: string;
   } | null>(null);
 
-  //Directions const 
+  //Directions consts 
   const [origin, setOrigin] = React.useState<LatLng>({
     latitude: 37.78825,
     longitude: -122.4324,
@@ -88,124 +78,42 @@ export const MapScreen: React.FC<MapScreenProps> = props => {
     longitude: -122.4324,
   });
 
+  //The current step in the route 
+  const [currentStep, setCurrentStep] = useState<string | null>(null);
+
+  //The current step index in the steps array
   const [currentWaypointIndex, setCurrentWaypointIndex] = useState(0);
 
+  // State variables to show the routes on the map
   const [showRoutes, setShowRoutes] = useState<boolean>(false);
-
   const [displayedRoutes, setDisplayedRoutes] = useState(extractedRoutes);
 
+  // Show the route from the user location to the start of the selected bicycle route
   const[showRouteToStart,setShowRouteToStart]=useState<boolean>(false);
-  const [RouteStartLocation,setRouteStartLocation] = useState<GeoPointData | null>(null);
-  const [distance, setDistance] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const mapRef = useRef<MapView>(null);
   
+  const [distance, setDistance] = useState(0);
+  
+  const [duration, setDuration] = useState(0);
+  
+  //State varible for taking the map view to a area that the user have choosed
+  const mapRef = useRef<MapView>(null);
 
-  //LOCATION
-   // location
-   const [location, setLocation] = useState<{
+  const [mapRegion, setMapRegion] = useState<Region | null>(null);
+
+  const [location, setLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
   
 
-
 //FUNCTIONS FOR DATABASE DATA
-  
-  //FUNCTIONS FOR DIRECTIONS
-  const updateDestination = () => {
-    if (selectedRoute) {
-      console.log(selectedRoute);
-      if (currentWaypointIndex < selectedRoute.route.length - 1) {
-        const nextWaypoint = selectedRoute.route[currentWaypointIndex + 1];
-        setDestination(nextWaypoint); // Update destination to the next waypoint
-        console.log("setDestination in updateDest " + nextWaypoint);
-        setCurrentWaypointIndex(currentWaypointIndex + 1); // Move to the next waypoint
-      } else {
-        // When all waypoints are covered, stop navigation
-        setShowRouteToStart(false);
-        Alert.alert('You have reached your destination');
-      }
-    }
-  };
-
-  // Call this function when the user reaches the current destination
-  const checkProximityToWaypoint = () => {
-    if (location && selectedRoute) {
-     // console.log("in checkProximityToWaypoint");
-      const distanceToNextWaypoint = getDistance(
-        location,
-        selectedRoute.route[currentWaypointIndex]
-      );
-  
-      if (distanceToNextWaypoint < 50) { // Adjust this threshold as needed
-        updateDestination(); // Call updateDestination to move to the next point
-      }
-    }
-  };
-  
-  // Call this periodically to check the proximity
-useEffect(() => {
-  if (selectedRoute) {  // Only start checking when a route is selected
-    console.log("Proximity checking started");
-    const interval = setInterval(checkProximityToWaypoint, 1000); // Adjust the interval if needed
-    return () => clearInterval(interval); // Clean up on unmount
-  }
-    
-}, [location, currentWaypointIndex, selectedRoute]);
-
-
-  //ADDING FUNC THAT TRACKING THE USER LOCATION
-  const startTracking =() => {
-      console.log("clicked on start tracking");
-      if (watchId.current === null) {
-        watchId.current = Geolocation.watchPosition(
-          position => {
-            console.log("made it");
-            const { latitude, longitude } = position.coords;
-            setLocation({ latitude, longitude });
-
-            // Update trackedGeoPoints with new GeoPoint
-            setTrackedGeoPoints((prevGeoPoints) => [...prevGeoPoints, { latitude, longitude }]);
-            setMapRegion({
-              latitude,
-              longitude,
-              latitudeDelta: 0.005, // More zoomed-in value
-              longitudeDelta: 0.005, // More zoomed-in value
-            });
-          },
-          error => console.log(error),
-          { enableHighAccuracy: true, distanceFilter: 0, interval: 1000 }
-        );
-        setTracking(true);
-      }
-  };
-
-
-
-  //ADDING A FUNCTION THAT STOP THE TRACK ON THE USER LOCATION
-  const stopTracking = () => {
-      if (tracking && watchId.current !== null) {
-        console.log(trackedGeoPoints);
-        Geolocation.clearWatch(watchId.current);
-        watchId.current = null;
-        setTracking(false);
-        setModalVisible(true);
-      }
-  };
-
-  // Function to get the routes from the database
-  const fetchRoutes = async () => {
+    // Fetching the routes from the DB
+    const fetchRoutes = async () => {
       try {
         const routesCollection = await firestore().collection('routes').get();
         routesCollection.forEach(doc => {
           const data = doc.data() as RouteData;
           const route = doc.data().route; // Get the route from the document
-  
-          // print route from db
-          console.log('route name (db)', data.name); // the current route name in the doc
-          console.log('route (db)', route); // the current route in the doc
-  
           const difficulty = doc.data().difficulty; // Get the difficulty from the document
           const name = doc.data().name; // Get the name from the document
   
@@ -230,7 +138,6 @@ useEffect(() => {
             );
           }
         });
-        //  setRoutes(extractedRoutes);
         setShowRoutes(true);
         console.log(showRoutes);
       } catch (error) {
@@ -238,6 +145,85 @@ useEffect(() => {
       }
   };
 
+  //FUNCTIONS FOR DIRECTIONS
+  const updateDestination = () => {
+    if (selectedRoute) {
+      console.log(selectedRoute);
+      if (currentWaypointIndex < selectedRoute.route.length - 1) {
+        const nextWaypoint = selectedRoute.route[currentWaypointIndex + 1];
+        setDestination(nextWaypoint); // Update destination to the next waypoint
+        console.log("setDestination in updateDest " + nextWaypoint);
+        setCurrentWaypointIndex(currentWaypointIndex + 1); // Move to the next waypoint
+      } else {
+        // When all waypoints are covered, stop navigation
+        setShowRouteToStart(false);
+        Alert.alert('You have reached your destination');
+      }
+    }
+  };
+
+// Call this function when the user reaches the current destination
+const checkProximityToWaypoint = () => {
+  if (location && selectedRoute) {
+    const distanceToNextWaypoint = getDistance(
+      location,
+      selectedRoute.route[currentWaypointIndex]
+    );
+
+    if (distanceToNextWaypoint < 50) { 
+      updateDestination(); // Call updateDestination to move to the next point
+    }
+  }
+};
+  
+// Call this periodically to check the proximity
+useEffect(() => {
+  if (selectedRoute) {  // Only start checking when a route is selected
+    console.log("Proximity checking started");
+    const interval = setInterval(checkProximityToWaypoint, 1000); // Adjust the interval if needed
+    return () => clearInterval(interval); // Clean up on unmount
+  }
+    
+}, [location, currentWaypointIndex, selectedRoute]);
+
+  //FUNCIONS FOR TRACKING THE USER LOCATION
+  // Start tracking the user location
+  const startTracking =() => {
+      console.log("clicked on start tracking");
+      if (watchId.current === null) {
+        watchId.current = Geolocation.watchPosition(
+          position => {
+            console.log("Tracking");
+            const { latitude, longitude } = position.coords;
+            setLocation({ latitude, longitude });
+
+            // Update trackedGeoPoints with new GeoPoint
+            setTrackedGeoPoints((prevGeoPoints) => [...prevGeoPoints, { latitude, longitude }]);
+            setMapRegion({
+              latitude,
+              longitude,
+              latitudeDelta: 0.005, // More zoomed-in value
+              longitudeDelta: 0.005, // More zoomed-in value
+            });
+          },
+          error => console.log(error),
+          { enableHighAccuracy: true, distanceFilter: 0, interval: 1000 }
+        );
+        setTracking(true);
+      }
+  };
+
+  // Stop tracking the user location
+  const stopTracking = () => {
+      if (tracking && watchId.current !== null) {
+        console.log("The points that have been tracked:")
+        console.log(trackedGeoPoints);
+        Geolocation.clearWatch(watchId.current);
+        watchId.current = null;
+        setTracking(false);
+        setModalVisible(true);
+      }
+  };
 
 //FUNCTIONS FOR SEARCHING ROUTS
   const handleLocationSelect = async (data: any, details: any) => {
@@ -279,18 +265,19 @@ useEffect(() => {
     }
   };
        
+  // Handle route selected by the user from the search bar
   const handleRoutePress = (item: RouteWithDistance) => {
     console.log("Item pressed:", item);
     setSelectedRoute(item);  
     setShowFlatList(false);
     const firstPoint = item.route[0];
+
     // Set the first waypoint for the directions
     if (location) {
       setOrigin(location); // Current location is the origin
       setDestination(firstPoint); // Set the first point as the destination
       console.log("setDestination in hadnleRoutePress" + firstPoint);
       setCurrentWaypointIndex(0);
-      console.log("line 291"); // Reset waypoint index
       setShowRouteToStart(true); // Enable showing directions
     }
   
@@ -371,19 +358,9 @@ useEffect(() => {
         longitudeDelta: 0.005,
       }, 1000); // Animation duration in milliseconds
     }
-  }, [location]); 
+  }, [location]); // Taking the map view to the current user location
 
-
-
-
-
-
-
-
-
-
-  
-
+// Fecthing route from the diretion API 
   const fetchDirections = async (startLocation: GeoPointData, endLocation: GeoPointData) => {
     const apiKey = "AIzaSyCb63VHAQyLVa5BkcJDuqlZQbiUqp-nUIs";
     const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${startLocation.latitude},${startLocation.longitude}&destination=${endLocation.latitude},${endLocation.longitude}&mode=walking&key=${apiKey}`;
@@ -406,14 +383,6 @@ useEffect(() => {
     }
   };
 
- /* const displayDirections = (steps) => {
-    return steps.map((step, index) => (
-      <Text key={index}>{step.html_instructions.replace(/<[^>]+>/g, '')}</Text>
-    ));
-  };
-  */
-
-
 //HANDLERS FOR BUTTONS AND OTHER INTERACTIVE COMPONENTS
   // showRoutes button function
   const showAllroutes = async () => {
@@ -435,10 +404,6 @@ useEffect(() => {
       `Name: ${route.name}\nDifficulty: ${route.difficulty}`,
       [
         {
-          text: 'Choose Route',
-          onPress: () => handleChooseRoute(route), // Add the button to show only this route
-        },
-        {
           text: 'OK',
           style: 'cancel', // This is the default OK button
         },
@@ -446,47 +411,27 @@ useEffect(() => {
       { cancelable: true }
     );
   };
-
-  const handleChooseRoute = (route: {
-    route: GeoPointData[];
-    difficulty: number;
-    name: string;
-  }) => {
-    //setDisplayedRoutes([route]);// Set the map to show only the selected route
-    setShowRouteToStart(true);
-    //setRouteStartLocation(route.route[0]);
-    //setSelectedRoute(route);
-
- // Get the starting point of the route
- const startPoint = route.route[0];
- if (location) {
-  setOrigin(location); // Current location is the origin
-  setDestination(startPoint);
-  console.log("setDestination in chooseRoute" + startPoint); // Set the first point as the destination
-  setCurrentWaypointIndex(0);
-  console.log("line 461"); // Reset waypoint index
-  setShowRouteToStart(true); // Enable showing directions
-}
-
- // Provide navigation instructions
- //navigateToRouteStart(startPoint);
-
-  };
-
+  
+  // Fecthing the data from the diretion API route that was created
   const traceRouteOnReady = (args: any) => {
     console.log('Trace Route On Ready Args:', args); // Log the full object
     if (args) {
       setDistance(args.distance);
       setDuration(args.duration);
+      if (args.legs[0] && args.legs[0].steps.length > 0) {
+        const firstStep = args.legs[0].steps[0].html_instructions;
+        setCurrentStep(firstStep);  // Set the first instruction
+      }
     }
   };
 
+  // Function that send the user to google maps to direct him to the chosen route
   const navigateToRouteStart = (startPoint: GeoPointData) => {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${startPoint.latitude},${startPoint.longitude}&travelmode=walking`;
     Linking.openURL(url);
   };
 
-  // handler for the add route button
+  // Handler for the 'add route' button
   const handleAddRoute = () => {
     addRouteToFirestore(routeName, routeDifficulty);
     setModalVisible(false);
@@ -494,8 +439,8 @@ useEffect(() => {
     setRouteDifficulty('');
   };
 
-  // adds the route to the firestore as a doc 
-  // used after choosing a name and a difficulty
+  // Adds the route to the firestore as a doc 
+  // used after sumbiting the route data and press 'add route'
   const addRouteToFirestore = async (name: string, difficulty: string) => {
   try {
     const routeWithGeoPoints = trackedGeoPoints.map(point => 
@@ -515,19 +460,6 @@ useEffect(() => {
     console.error('Error adding route: ', error);
   }
  };
-
-
-
-
- /* region={{
-  latitude: location ? location.latitude : 37.78825,
-  longitude: location ? location.longitude : -122.4324,
-  latitudeDelta: 0.005,
-  longitudeDelta: 0.005,
-}}
-  */
-
-
 
 return (
   <SafeAreaView style={mapScreenStyle.mainWrapper}>
@@ -565,9 +497,6 @@ return (
     onReady={traceRouteOnReady}
   />
 )}
-    
-
-
 
        {/* Display only the selected route or all routes */}
 {displayedRoutes.map((data, index) => (
@@ -586,16 +515,15 @@ return (
     </MapView>
 
     <View style={styles.infoBox}>
-{distance && duration ? (
-  <View style={{ padding: 10, backgroundColor: '#fff', borderRadius: 10 }}>
+{distance && duration && currentStep ? (
+  <View style={{ padding: 10, backgroundColor: '#fff', borderRadius: 10 }}>    
+    {typeof currentStep === 'string' && (
+    <Text>Instruction: {currentStep.replace(/<[^>]+>/g, '')}</Text> )}
     <Text>Distance: {(distance * 1609.34 / 1000).toFixed(2)} Kilometers</Text>
     <Text>Duration: {Math.ceil(duration)} min</Text>
   </View>
 ) : null}
 </View>
-
-
-
     <View style={styles.buttonContainer}>
       <Button
         title={showRoutes ? 'Hide Routes' : 'Show Routes'}
@@ -671,7 +599,7 @@ return (
 );
 };
 
-//
+
 // STYLES
 const styles = StyleSheet.create({
   mainWrapper: {
@@ -784,7 +712,7 @@ const getPolylineColor = (index: number): string => {
 };
 
 
-// ROUTE "FIXING" FUNCTIONS
+// ROUTE "FIXING" FUNCTIONS - removing geo-points that not needed for the route 
   function simplifyRoute(data: RouteData): RouteData {
   return {
     route: douglasPeucker(data.route, 0.0001),
